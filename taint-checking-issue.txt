@@ -1,0 +1,4 @@
+So far, the pass cannot be run with a TNT_MAKE_MEM_TAINTED() because this function contains an int** cast to int.
+Generally, the pass can easily fall into an infinite recursion if your print() contains a cast instruction.
+
+Two solutions: escape the int** to inst or find a way to not apply the pass on our print() function.
