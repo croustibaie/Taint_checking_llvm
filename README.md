@@ -1,48 +1,55 @@
-# Instrumentation of bitcode with taintgrind instructions for runtime detection of address sensitive behavior
+# Detecting address sensitive behavior
+This describes how to compile the instrumentation tools, instrument your test program and finally run it to detect address sensitive behaviors.
+
+## Prerequisits
+* Download and compile LLVM
+* Download and compile [`taintgrind`](https://github.com/wmkhoo/taintgrind).
 
 ## Installing the instrumentation pass
 
 ```bash
-cd ~/your-path-to-llvm/lib/Transforms/
 git clone git@github.com:croustibaie/Taint_checking_llvm.git ASBDetection
-echo add_subdirectory(ASBDetection) >> CMakeLists.txt
+cd ASBDetection
+cmake -DLLVM_DIR=/path/to/llvm-build/share/llvm/cmake .
+make
 ```
-
-Compile with ninja.
 
 ## Compile your source files to bitcode
 
-The plugin requires a function named `print`. Create a `print.c` file with the `print()` function and compile it with:
+The plugin requires a function named `print`.
+A sample function can be found in the `test` folder together with a test program to instrument.
+Compile both to bitcode with:
+```bash
+cd test
+./compile.sh print.c print.bc
+./compile.sh test.c test.bc
+```
+*Note:* You probably have to adjust the path to your valgrind installation in `compile.sh`.
 
-`clang -O3 -emit-llvm  print.c -c -o print.bc to generate the bitcode.`
+*Note:* If you change the return type or the arguments of `print()`, you'll have to change the pass.
 
-Compile your `main.c` function with the same command line:
+Now link the `print.bc` to your instrumented program:
+```bash
+llvm-link print.bc test.bc -S -o=linked.bc
+```
 
-`clang -O3 -emit-llvm  a.c -c -o a.bc`
-
-To link `print.bc` to your main bitcode :
-
-`llvm-link print.bc a.bc -S -o=b.bc` (`-S` makes `b.bc` readable in vi, not necessary)
-
-To view your bitcode : 
-
-`llvm-dis b.bc | less`
-
-note: If you change the return type or the arguments of `print()`, you'll have to change the pass.
-
-I already wrote a functional `print.c` and `a.c` in this folder.
+The flag `-S` makes `linked.bc` readable in vi but is not necessary otherwise. In general, to view your bitcode use: 
+```bash
+llvm-dis linked.bc && less linked.ll
+```
 
 ## Running the pass and the bitcode
 
 To run the pass on the bitcode:
+```bash
+opt -S -load ../ASBDetection/libLLVMasbDetection.so -bishe_insert <linked.bc> instr.bc
+```
+*Note:* The <> around your bitcode is necessary
 
-`opt -load /your-path-to-llvm/clang-llvm/build/lib/LLVMinsertFun.so -bishe_insert <~/Pass-to-your-bitcode/b.bc> b1.bc`
-
-note: The <> around your bitcode is necessary
-
-To run `b1.bc` :
-
-`lli b1.bc`
+To run `instr.bc`:
+```bash
+lli instr.bc
+```
 
 ## TODO
 
