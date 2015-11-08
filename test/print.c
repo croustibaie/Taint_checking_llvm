@@ -1,4 +1,4 @@
-#include "/usr/local/include/valgrind/taintgrind.h"
+#include <taintgrind.h>
 #include <stdio.h>
 
 void print(long a)

@@ -1,20 +1,10 @@
-# If we don't need RTTI or EH, there's no reason to export anything
-# from the hello plugin.
-if( NOT LLVM_REQUIRES_RTTI )
-  if( NOT LLVM_REQUIRES_EH )
-    set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/insert.exports)
-  endif()
-endif()
+cmake_minimum_required(VERSION 3.3)
 
-if(WIN32 OR CYGWIN)
-  set(LLVM_LINK_COMPONENTS Core Support)
-endif()
+set(CMAKE_CXX_FLAGS "-std=c++11 -fno-rtti")
 
-add_llvm_loadable_module( LLVMinsertFun
-  insert.cpp
+find_package(LLVM REQUIRED CONFIG)
 
-  DEPENDS
-  intrinsics_gen
-  )
+add_definitions(${LLVM_DEFINITIONS})
+include_directories(${LLVM_INCLUDE_DIRS})
 
-
+add_subdirectory(ASBDetection)
