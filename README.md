@@ -55,6 +55,11 @@ lli instr.bc
 
 To apply `TNT_MAKE_MEM_CHECK`, we need to find a way to first take the address of our cast variable and cast it as a `void*`. We also need the pass to get the size of the variable since `TNT_MAKE_MEM_CHECK` requires both the address and the length.
 
+Also, so far, the pass cannot be run with a `TNT_MAKE_MEM_TAINTED()` because this function contains an `int**` cast to `int`. Generally, the pass can easily fall into an infinite recursion if your `print()` contains a cast instruction.
+
+Two solutions: escape the `int**` to `int` or find a way to not apply the pass on our `print()` function.
+
+
 We also need to fix the issue described in `taint-checking-issue.txt` (in this folder).
 
 ## Useful documentation
