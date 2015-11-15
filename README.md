@@ -59,9 +59,6 @@ Also, so far, the pass cannot be run with a `TNT_MAKE_MEM_TAINTED()` because thi
 
 Two solutions: escape the `int**` to `int` or find a way to not apply the pass on our `print()` function.
 
-
-We also need to fix the issue described in `taint-checking-issue.txt` (in this folder).
-
 ## Useful documentation
 Helloworld pass:
 
