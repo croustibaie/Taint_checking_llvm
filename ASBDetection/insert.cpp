@@ -10,47 +10,55 @@
 
 #include "llvm/IR/IRBuilder.h"
 
-
-
 using namespace llvm;
 
 namespace{
     struct bishe_insert : public ModulePass {
         static char ID;  
-        Function *hook;
+        Function* hook;
 
         bishe_insert() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            Constant *hookFunc;
-            hookFunc = M.getOrInsertFunction("print", FunctionType::getVoidTy(M.getContext()),Type::getInt64Ty(M.getContext()), (Type*)0);
-              
-            hook= cast<Function>(hookFunc);
-            for(Module::iterator F = M.begin(), E = M.end(); F!= E; ++F) {
-                for(Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-                    /*BB->dump();
-                    if (BB->hasName())
-                    errs() << BB->getName();*/
-                    bishe_insert::runOnBasicBlock(BB);
+            // void print(int64)
+            LLVMContext& ctx = M.getContext();
+            Constant* hookFunc = M.getOrInsertFunction("print",
+                FunctionType::getVoidTy(ctx), Type::getInt64Ty(ctx), nullptr);
+            hook = cast<Function>(hookFunc);
+            
+            // iterate over the functions in the module
+            for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
+                // iterate over the basic blocks in the function
+                for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi) {
+                    /*fi->dump();
+                    if (fi->hasName())
+                    errs() << fi->getName();*/
+                    runOnBasicBlock(fi);
                 }
             }
 
             return false;
         }
         
-        virtual bool runOnBasicBlock(Function::iterator &BB) {
-            for(BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE; ++BI) {
-                if(CastInst *CI = dyn_cast<CastInst>(BI)) {
-                    if (CI->getSrcTy()->isPointerTy() && CI->getDestTy()->isIntegerTy()) {
-                        /*Value *operand = CI->getOperand(0);
+        virtual bool runOnBasicBlock(Function::iterator &fi) {
+            // iterate over the items in the basic block
+            for (BasicBlock::iterator bi = fi->begin(), be = fi->end(); bi != be; ++bi) {
+                // find all cast instructions
+                if (CastInst* castInst = dyn_cast<CastInst>(bi)) {
+                    // only if this is a cast from ptr to int
+                    if (castInst->getSrcTy()->isPointerTy() && castInst->getDestTy()->isIntegerTy()) {
+                        /*Value *operand = castInst->getOperand(0);
                         operand->printAsOperand(errs());
                         errs() << "\n";*/
-                        CI->getType()->print(errs());
+                        
+                        errs() << "Found cast instruction of type: ";
+                        castInst->getType()->print(errs());
                         errs() << "\n";
-                        ArrayRef<Value *> args = ArrayRef<Value *>(CI);
-                        //ArrayRef<Value *> args= ArrayRef<Value *>();
-                        Instruction *newInst = CallInst::Create(hook,args, "");
-                        BB->getInstList().insertAfter((Instruction*)CI, newInst);                      
+                        
+                        // create and insert the print instruction that prints the value of the pointer
+                        ArrayRef<Value*> args = ArrayRef<Value*>(castInst);
+                        Instruction *newInst = CallInst::Create(hook, args, "");
+                        fi->getInstList().insertAfter((Instruction*) castInst, newInst);
                     }
                 }
             }

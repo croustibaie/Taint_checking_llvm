@@ -1,13 +1,6 @@
 #include <taintgrind.h>
 #include <stdio.h>
 
-void print(long a)
-{
-  printf("In print: , %ld",a);
+void print(long a) {
+  printf("In print: %ld\n", a);
 }
-
-/*void print()
-{
-    printf("blalba \n");
-}*/
-
