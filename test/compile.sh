@@ -13,4 +13,4 @@ else
     OUTFILE="$2"
 fi
 
-exec clang -O0 -emit-llvm -I$VALGRIND_DIR/include/valgrind $1 -c -o $OUTFILE
+exec clang -O1 -emit-llvm -I$VALGRIND_DIR/include/valgrind $1 -c -o $OUTFILE
