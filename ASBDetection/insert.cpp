@@ -67,13 +67,13 @@ namespace {
                     if (verbosity > 1) printTaint(opTaint);
                     
                     taint = mergeTaints(taint, opTaint);
-                } else if (isa<User>(op)) {
-                    assert(false); // NOT IMPLEMENTED
-                } else {
+                } else if (isa<Argument>(op)) {
                     // this is probably a function param then
                     if (verbosity > 1) errs() << " :: VALUE -> TAINT_MAYBE";
                     
                     taint = mergeTaints(taint, TAINT_MAYBE);
+                } else {
+                    assert(false); // NOT IMPLEMENTED
                 }
                 
                 if (verbosity > 1) errs() << "\n";
