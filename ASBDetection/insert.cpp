@@ -68,11 +68,10 @@ namespace {
                     
                     taint = mergeTaints(taint, opTaint);
                 } else if (isa<Argument>(op)) {
-                    // this is probably a function param then
                     if (verbosity > 1) errs() << " :: VALUE -> TAINT_MAYBE";
-                    
+
                     taint = mergeTaints(taint, TAINT_MAYBE);
-                } else {
+                } else if (!isa<MetadataAsValue>(op)) {
                     assert(false); // NOT IMPLEMENTED
                 }
                 
@@ -84,6 +83,10 @@ namespace {
             if (verbosity > 0) errs() << "\n";
             
             if (verbosity > 1) errs() << "\n";
+
+//            if (inst.getDebugLoc())
+//                errs() << inst.getDebugLoc().getLine();
+
             return taint;
         }
 
