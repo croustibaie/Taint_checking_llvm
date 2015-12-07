@@ -23,9 +23,9 @@ namespace {
     };
     
     struct CountAllocaVisitor : public InstVisitor<CountAllocaVisitor, Taint> {
-        bool verbose;
+        int verbosity;
         
-        CountAllocaVisitor() : verbose(true) {}
+        CountAllocaVisitor() : verbosity(1) {}
 
         Taint mergeTaints(Taint t1, Taint t2) {
             switch (t1) {
@@ -45,45 +45,45 @@ namespace {
         }
 
         Taint treatInstruction(Instruction &inst) {
-            if (verbose) inst.print(errs());
-            if (verbose) errs() << "  :\n";
-
+            if (verbosity > 0) inst.print(errs());
+            if (verbosity > 1) errs() << "  :\n";
+            
             Taint taint = TAINT_NONE;
             
             for (int i = 0; i < inst.getNumOperands(); ++i) {
                 Value *op = inst.getOperand(i);
-                if (verbose) errs() << "    ";
-                if (verbose) op->printAsOperand(errs());
+                if (verbosity > 1) errs() << "    ";
+                if (verbosity > 1) op->printAsOperand(errs());
 
                 if (isa<Constant>(op)) {
-                    if (verbose) errs() << " :: CONSTANT -> TAINT_NONE";
+                    if (verbosity > 1) errs() << " :: CONSTANT -> TAINT_NONE";
                 } else if (isa<Instruction>(op)) {
-                    if (verbose) errs() << " :: INSTRUCTION -> ";
-                    bool oldVerbose = verbose;
-                    verbose = false;
+                    if (verbosity > 1) errs() << " :: INSTRUCTION -> ";
+                    bool oldVerbosity = verbosity;
+                    verbosity = false;
                     Taint opTaint = visit(dyn_cast<Instruction>(op));
-                    verbose = oldVerbose;
+                    verbosity = oldVerbosity;
 
-                    if (verbose) printTaint(opTaint);
+                    if (verbosity > 1) printTaint(opTaint);
                     
                     taint = mergeTaints(taint, opTaint);
                 } else if (isa<User>(op)) {
                     assert(false); // NOT IMPLEMENTED
                 } else {
                     // this is probably a function param then
-                    if (verbose) errs() << " :: VALUE -> TAINT_MAYBE";
+                    if (verbosity > 1) errs() << " :: VALUE -> TAINT_MAYBE";
                     
                     taint = mergeTaints(taint, TAINT_MAYBE);
                 }
                 
-                if (verbose) errs() << "\n";
+                if (verbosity > 1) errs() << "\n";
             }
             
-            if (verbose) errs() << "    --> ";
-            if (verbose) printTaint(taint);
-            if (verbose) errs() << "\n";
+            if (verbosity > 0) errs() << "    --> ";
+            if (verbosity > 0) printTaint(taint);
+            if (verbosity > 0) errs() << "\n";
             
-            if (verbose) errs() << "\n";
+            if (verbosity > 1) errs() << "\n";
             return taint;
         }
 
@@ -116,13 +116,15 @@ namespace {
         Taint visitICmpInst(ICmpInst &I)                { return treatInstruction(I);}
         Taint visitFCmpInst(FCmpInst &I)                { return treatInstruction(I);}
         Taint visitAllocaInst(AllocaInst &I)            {
-            if (verbose) I.print(errs());
-            if (verbose) errs() << "  -> TAINT_DEFINITELY\n\n";
+            if (verbosity > 0) I.print(errs());
+            if (verbosity > 0) errs() << "    -> TAINT_DEFINITELY\n";
+            if (verbosity > 1) errs() << "\n";
             return TAINT_DEFINITELY;
         }
         Taint visitLoadInst(LoadInst     &I)            {
-            if (verbose) I.print(errs());
-            if (verbose) errs() << "  -> TAINT_MAYBE\n\n";
+            if (verbosity > 0) I.print(errs());
+            if (verbosity > 0) errs() << "    -> TAINT_MAYBE\n";
+            if (verbosity > 1) errs() << "\n";
             return TAINT_MAYBE;
         }
         Taint visitStoreInst(StoreInst   &I)            { return treatInstruction(I);}
@@ -180,13 +182,15 @@ namespace {
 
         virtual bool runOnModule(Module &M) {
             // void print(int64)
-            LLVMContext& ctx = M.getContext();
+            /*LLVMContext& ctx = M.getContext();
             Constant* hookFunc = M.getOrInsertFunction("print",
                 FunctionType::getVoidTy(ctx), Type::getInt64Ty(ctx), nullptr);
-            hook = cast<Function>(hookFunc);
+                hook = cast<Function>(hookFunc);*/
             
             // iterate over the functions in the module
             for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
+                errs() << mi->getName() << "(...):\n";
+                
                 // iterate over the basic blocks in the function
                 for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi) {
                     /*fi->dump();
@@ -200,8 +204,12 @@ namespace {
         }
         
         virtual bool runOnBasicBlock(Function::iterator &fi) {
+            errs() << fi->getName() << ":\n";
+            
             CountAllocaVisitor v;
             v.visit(*fi);
+
+            errs() << "\n";
         
             // Iterate over the items in the basic block
             for (BasicBlock::iterator bi = fi->begin(), be = fi->end(); bi != be; ++bi) {

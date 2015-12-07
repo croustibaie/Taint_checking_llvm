@@ -1,0 +1,7 @@
+f(...):
+entry:
+  ret i32 %x    --> TAINT_MAYBE
+
+main(...):
+entry:
+  ret i32 0    --> TAINT_NONE
