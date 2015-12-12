@@ -16,18 +16,18 @@
 using namespace llvm;
 
 namespace {
-    enum Taint {
+    enum TaintKind {
         TAINT_NONE,
         TAINT_MAYBE,
         TAINT_DEFINITELY
     };
-    
-    struct CountAllocaVisitor : public InstVisitor<CountAllocaVisitor, Taint> {
+
+    struct CountAllocaVisitor : public InstVisitor<CountAllocaVisitor, TaintKind> {
         int verbosity;
         
         CountAllocaVisitor() : verbosity(1) {}
 
-        Taint mergeTaints(Taint t1, Taint t2) {
+        TaintKind mergeTaintKinds(TaintKind t1, TaintKind t2) {
             switch (t1) {
             case TAINT_NONE:
                 return t2;
@@ -44,11 +44,11 @@ namespace {
             }
         }
 
-        Taint treatInstruction(Instruction &inst) {
+        TaintKind treatInstruction(Instruction &inst) {
             if (verbosity > 0) inst.print(errs());
             if (verbosity > 1) errs() << "  :\n";
             
-            Taint taint = TAINT_NONE;
+            TaintKind taint = TAINT_NONE;
             
             for (int i = 0; i < inst.getNumOperands(); ++i) {
                 Value *op = inst.getOperand(i);
@@ -61,16 +61,16 @@ namespace {
                     if (verbosity > 1) errs() << " :: INSTRUCTION -> ";
                     bool oldVerbosity = verbosity;
                     verbosity = false;
-                    Taint opTaint = visit(dyn_cast<Instruction>(op));
+                    TaintKind opTaint = visit(dyn_cast<Instruction>(op));
                     verbosity = oldVerbosity;
 
-                    if (verbosity > 1) printTaint(opTaint);
+                    if (verbosity > 1) printTaintKind(opTaint);
                     
-                    taint = mergeTaints(taint, opTaint);
+                    taint = mergeTaintKinds(taint, opTaint);
                 } else if (isa<Argument>(op)) {
                     if (verbosity > 1) errs() << " :: VALUE -> TAINT_MAYBE";
 
-                    taint = mergeTaints(taint, TAINT_MAYBE);
+                    taint = mergeTaintKinds(taint, TAINT_MAYBE);
                 } else if (!isa<MetadataAsValue>(op)) {
                     assert(false); // NOT IMPLEMENTED
                 }
@@ -78,8 +78,8 @@ namespace {
                 if (verbosity > 1) errs() << "\n";
             }
             
-            if (verbosity > 0) errs() << "    --> ";
-            if (verbosity > 0) printTaint(taint);
+            if (verbosity > 0) errs() << "    -> ";
+            if (verbosity > 0) printTaintKind(taint);
             if (verbosity > 0) errs() << "\n";
             
             if (verbosity > 1) errs() << "\n";
@@ -90,7 +90,7 @@ namespace {
             return taint;
         }
 
-        bool printTaint(Taint t) {
+        void printTaintKind(TaintKind t) {
             switch (t) {
             case TAINT_NONE:
                 errs() << "TAINT_NONE";
@@ -103,77 +103,86 @@ namespace {
                 break;
             }
         }
+
+        TaintKind printWithTaint(Instruction& instr, TaintKind t) {
+            if (verbosity > 0) {
+                instr.print(errs());
+                errs() << "    -> ";
+                printTaintKind(t);
+                errs() << "\n";
+            }
+            if (verbosity > 1) {
+                errs() << "\n";
+            }
+            return t;
+        }
         
-        Taint visitReturnInst(ReturnInst &I)            { return treatInstruction(I);}
-        Taint visitBranchInst(BranchInst &I)            { return treatInstruction(I);}
-        Taint visitSwitchInst(SwitchInst &I)            { return treatInstruction(I);}
-        Taint visitIndirectBrInst(IndirectBrInst &I)    { return treatInstruction(I);}
-        Taint visitResumeInst(ResumeInst &I)            { return treatInstruction(I);}
-        Taint visitUnreachableInst(UnreachableInst &I)  { return treatInstruction(I);}
-        Taint visitCleanupReturnInst(CleanupReturnInst &I) { return treatInstruction(I);}
-        Taint visitCleanupEndPadInst(CleanupEndPadInst &I) { return treatInstruction(I); }
-        Taint visitCatchReturnInst(CatchReturnInst &I)  { return treatInstruction(I); }
-        Taint visitCatchPadInst(CatchPadInst &I)    { return treatInstruction(I);}
-        Taint visitCatchEndPadInst(CatchEndPadInst &I) { return treatInstruction(I); }
-        Taint visitTerminatePadInst(TerminatePadInst &I) { return treatInstruction(I);}
-        Taint visitICmpInst(ICmpInst &I)                { return treatInstruction(I);}
-        Taint visitFCmpInst(FCmpInst &I)                { return treatInstruction(I);}
-        Taint visitAllocaInst(AllocaInst &I)            {
-            if (verbosity > 0) I.print(errs());
-            if (verbosity > 0) errs() << "    -> TAINT_DEFINITELY\n";
-            if (verbosity > 1) errs() << "\n";
-            return TAINT_DEFINITELY;
+        TaintKind visitReturnInst(ReturnInst &I)            { return treatInstruction(I);}
+        TaintKind visitBranchInst(BranchInst &I)            { return treatInstruction(I);}
+        TaintKind visitSwitchInst(SwitchInst &I)            { return treatInstruction(I);}
+        TaintKind visitIndirectBrInst(IndirectBrInst &I)    { return treatInstruction(I);}
+        TaintKind visitResumeInst(ResumeInst &I)            { return treatInstruction(I);}
+        TaintKind visitUnreachableInst(UnreachableInst &I)  { return treatInstruction(I);}
+        TaintKind visitCleanupReturnInst(CleanupReturnInst &I) { return treatInstruction(I);}
+        TaintKind visitCleanupEndPadInst(CleanupEndPadInst &I) { return treatInstruction(I); }
+        TaintKind visitCatchReturnInst(CatchReturnInst &I)  { return treatInstruction(I); }
+        TaintKind visitCatchPadInst(CatchPadInst &I)    { return treatInstruction(I);}
+        TaintKind visitCatchEndPadInst(CatchEndPadInst &I) { return treatInstruction(I); }
+        TaintKind visitTerminatePadInst(TerminatePadInst &I) { return treatInstruction(I);}
+        TaintKind visitICmpInst(ICmpInst &I)                { return treatInstruction(I);}
+        TaintKind visitFCmpInst(FCmpInst &I)                { return treatInstruction(I);}
+        TaintKind visitAllocaInst(AllocaInst &I)            {
+            return printWithTaint(I, TAINT_DEFINITELY);
         }
-        Taint visitLoadInst(LoadInst     &I)            {
-            if (verbosity > 0) I.print(errs());
-            if (verbosity > 0) errs() << "    -> TAINT_MAYBE\n";
-            if (verbosity > 1) errs() << "\n";
-            return TAINT_MAYBE;
+        TaintKind visitLoadInst(LoadInst     &I)            {
+            return printWithTaint(I, TAINT_MAYBE);
         }
-        Taint visitStoreInst(StoreInst   &I)            { return treatInstruction(I);}
-        Taint visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) { return treatInstruction(I);}
-        Taint visitAtomicRMWInst(AtomicRMWInst &I)      { return treatInstruction(I);}
-        Taint visitFenceInst(FenceInst   &I)            { return treatInstruction(I);}
-        Taint visitGetElementPtrInst(GetElementPtrInst &I){ return treatInstruction(I);}
-        Taint visitPHINode(PHINode       &I)            { return treatInstruction(I);}
-        Taint visitTruncInst(TruncInst &I)              { return treatInstruction(I);}
-        Taint visitZExtInst(ZExtInst &I)                { return treatInstruction(I);}
-        Taint visitSExtInst(SExtInst &I)                { return treatInstruction(I);}
-        Taint visitFPTruncInst(FPTruncInst &I)          { return treatInstruction(I);}
-        Taint visitFPExtInst(FPExtInst &I)              { return treatInstruction(I);}
-        Taint visitFPToUIInst(FPToUIInst &I)            { return treatInstruction(I);}
-        Taint visitFPToSIInst(FPToSIInst &I)            { return treatInstruction(I);}
-        Taint visitUIToFPInst(UIToFPInst &I)            { return treatInstruction(I);}
-        Taint visitSIToFPInst(SIToFPInst &I)            { return treatInstruction(I);}
-        Taint visitPtrToIntInst(PtrToIntInst &I)        { return treatInstruction(I);}
-        Taint visitIntToPtrInst(IntToPtrInst &I)        { return treatInstruction(I);}
-        Taint visitBitCastInst(BitCastInst &I)          { return treatInstruction(I);}
-        Taint visitAddrSpaceCastInst(AddrSpaceCastInst &I) { return treatInstruction(I);}
-        Taint visitSelectInst(SelectInst &I)            { return treatInstruction(I);}
-        Taint visitVAArgInst(VAArgInst   &I)            { return treatInstruction(I);}
-        Taint visitExtractElementInst(ExtractElementInst &I) { return treatInstruction(I);}
-        Taint visitInsertElementInst(InsertElementInst &I) { return treatInstruction(I);}
-        Taint visitShuffleVectorInst(ShuffleVectorInst &I) { return treatInstruction(I);}
-        Taint visitExtractValueInst(ExtractValueInst &I){ return treatInstruction(I);}
-        Taint visitInsertValueInst(InsertValueInst &I)  { return treatInstruction(I); }
-        Taint visitLandingPadInst(LandingPadInst &I)    { return treatInstruction(I); }
-        Taint visitCleanupPadInst(CleanupPadInst &I) { return treatInstruction(I); }
+        TaintKind visitStoreInst(StoreInst   &I)            {
+            return printWithTaint(I, TAINT_NONE);
+        }
+        TaintKind visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) { return treatInstruction(I);}
+        TaintKind visitAtomicRMWInst(AtomicRMWInst &I)      { return treatInstruction(I);}
+        TaintKind visitFenceInst(FenceInst   &I)            { return treatInstruction(I);}
+        TaintKind visitGetElementPtrInst(GetElementPtrInst &I){ return treatInstruction(I);}
+        TaintKind visitPHINode(PHINode       &I)            { return treatInstruction(I);}
+        TaintKind visitTruncInst(TruncInst &I)              { return treatInstruction(I);}
+        TaintKind visitZExtInst(ZExtInst &I)                { return treatInstruction(I);}
+        TaintKind visitSExtInst(SExtInst &I)                { return treatInstruction(I);}
+        TaintKind visitFPTruncInst(FPTruncInst &I)          { return treatInstruction(I);}
+        TaintKind visitFPExtInst(FPExtInst &I)              { return treatInstruction(I);}
+        TaintKind visitFPToUIInst(FPToUIInst &I)            { return treatInstruction(I);}
+        TaintKind visitFPToSIInst(FPToSIInst &I)            { return treatInstruction(I);}
+        TaintKind visitUIToFPInst(UIToFPInst &I)            { return treatInstruction(I);}
+        TaintKind visitSIToFPInst(SIToFPInst &I)            { return treatInstruction(I);}
+        TaintKind visitPtrToIntInst(PtrToIntInst &I)        { return treatInstruction(I);}
+        TaintKind visitIntToPtrInst(IntToPtrInst &I)        { return treatInstruction(I);}
+        TaintKind visitBitCastInst(BitCastInst &I)          { return treatInstruction(I);}
+        TaintKind visitAddrSpaceCastInst(AddrSpaceCastInst &I) { return treatInstruction(I);}
+        TaintKind visitSelectInst(SelectInst &I)            { return treatInstruction(I);}
+        TaintKind visitVAArgInst(VAArgInst   &I)            { return treatInstruction(I);}
+        TaintKind visitExtractElementInst(ExtractElementInst &I) { return treatInstruction(I);}
+        TaintKind visitInsertElementInst(InsertElementInst &I) { return treatInstruction(I);}
+        TaintKind visitShuffleVectorInst(ShuffleVectorInst &I) { return treatInstruction(I);}
+        TaintKind visitExtractValueInst(ExtractValueInst &I){ return treatInstruction(I);}
+        TaintKind visitInsertValueInst(InsertValueInst &I)  { return treatInstruction(I); }
+        TaintKind visitLandingPadInst(LandingPadInst &I)    { return treatInstruction(I); }
+        TaintKind visitCleanupPadInst(CleanupPadInst &I) { return treatInstruction(I); }
         
         // Handle the special instrinsic instruction classes.
-        Taint visitDbgDeclareInst(DbgDeclareInst &I)    { return treatInstruction(I);}
-        Taint visitDbgValueInst(DbgValueInst &I)        { return treatInstruction(I);}
-        Taint visitDbgInfoIntrinsic(DbgInfoIntrinsic &I) { return treatInstruction(I); }
-        Taint visitMemSetInst(MemSetInst &I)            { return treatInstruction(I); }
-        Taint visitMemCpyInst(MemCpyInst &I)            { return treatInstruction(I); }
-        Taint visitMemMoveInst(MemMoveInst &I)          { return treatInstruction(I); }
-        Taint visitMemTransferInst(MemTransferInst &I)  { return treatInstruction(I); }
-        Taint visitMemIntrinsic(MemIntrinsic &I)        { return treatInstruction(I); }
-        Taint visitVAStartInst(VAStartInst &I)          { return treatInstruction(I); }
-        Taint visitVAEndInst(VAEndInst &I)              { return treatInstruction(I); }
-        Taint visitVACopyInst(VACopyInst &I)            { return treatInstruction(I); }
-        Taint visitIntrinsicInst(IntrinsicInst &I)      { return treatInstruction(I); }
+        TaintKind visitDbgDeclareInst(DbgDeclareInst &I)    { return treatInstruction(I);}
+        TaintKind visitDbgValueInst(DbgValueInst &I)        { return treatInstruction(I);}
+        TaintKind visitDbgInfoIntrinsic(DbgInfoIntrinsic &I) { return treatInstruction(I); }
+        TaintKind visitMemSetInst(MemSetInst &I)            { return treatInstruction(I); }
+        TaintKind visitMemCpyInst(MemCpyInst &I)            { return treatInstruction(I); }
+        TaintKind visitMemMoveInst(MemMoveInst &I)          { return treatInstruction(I); }
+        TaintKind visitMemTransferInst(MemTransferInst &I)  { return treatInstruction(I); }
+        TaintKind visitMemIntrinsic(MemIntrinsic &I)        { return treatInstruction(I); }
+        TaintKind visitVAStartInst(VAStartInst &I)          { return treatInstruction(I); }
+        TaintKind visitVAEndInst(VAEndInst &I)              { return treatInstruction(I); }
+        TaintKind visitVACopyInst(VACopyInst &I)            { return treatInstruction(I); }
+        TaintKind visitIntrinsicInst(IntrinsicInst &I)      { return treatInstruction(I); }
         
-        Taint visitInstruction(Instruction &I) { return treatInstruction(I); }  // Ignore unhandled instructions
+        TaintKind visitInstruction(Instruction &I) { return treatInstruction(I); }  // Ignore unhandled instructions
     };
 
 
