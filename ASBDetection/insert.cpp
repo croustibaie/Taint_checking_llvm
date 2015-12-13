@@ -247,6 +247,13 @@ namespace {
         Taint visitVAEndInst(VAEndInst &I)              { return treatInstruction(I); }
         Taint visitVACopyInst(VACopyInst &I)            { return treatInstruction(I); }
         Taint visitIntrinsicInst(IntrinsicInst &I)      { return treatInstruction(I); }
+
+        Taint visitCallInst(CallInst &I) {
+            return treatInstruction(I); // TODO
+        }
+        Taint visitInvokeInst(InvokeInst &I) {
+            return treatInstruction(I); // TODO
+        }
         
         Taint visitInstruction(Instruction &I) { return treatInstruction(I); }  // Ignore unhandled instructions
     };
@@ -267,7 +274,8 @@ namespace {
             
             // iterate over the functions in the module
             for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
-                errs() << mi->getName() << "(";
+                mi->getReturnType()->print(errs());
+                errs() << " " << mi->getName() << "(";
 
                 std::string sep("");
                 const Function::ArgumentListType& argList = mi->getArgumentList();

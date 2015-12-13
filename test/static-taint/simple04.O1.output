@@ -1,4 +1,4 @@
-f(i32 %x):
+i32 f(i32 %x):
 entry:
   %x.addr = alloca i32, align 4    -> TAINT_DEFINITELY
   tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !10, metadata !16), !dbg !17    -> TAINT_NONE
@@ -8,9 +8,9 @@ entry:
   %cond = select i1 %tobool, i32 %1, i32 15, !dbg !18    -> TAINT_MAYBE
   ret i32 %cond, !dbg !21    -> TAINT_MAYBE
 
-main():
+i32 main():
 entry:
   %call = tail call i32 @f(i32 0), !dbg !16    -> TAINT_MAYBE
   ret i32 %call, !dbg !17    -> TAINT_MAYBE
 
-llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):
+void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):
