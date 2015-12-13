@@ -1,0 +1,20 @@
+f(i32 %x):
+entry:
+  tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !10, metadata !18), !dbg !19    -> TAINT_NONE
+  ret i32 %x, !dbg !20    -> TAINT_MAYBE(x)
+
+main():
+entry:
+  %i = alloca i32, align 4    -> TAINT_DEFINITELY
+  %0 = bitcast i32* %i to i8*, !dbg !18    -> TAINT_DEFINITELY
+  call void @llvm.lifetime.start(i64 4, i8* %0) #3, !dbg !18    -> TAINT_NONE
+  tail call void @llvm.dbg.value(metadata i32 1, i64 0, metadata !14, metadata !18), !dbg !22    -> TAINT_NONE
+  %1 = ptrtoint i32* %i to i64, !dbg !21    -> TAINT_DEFINITELY
+  %2 = trunc i64 %1 to i32, !dbg !21    -> TAINT_DEFINITELY
+  %call = call i32 @f(i32 %2), !dbg !22    -> TAINT_DEFINITELY
+  call void @llvm.lifetime.end(i64 4, i8* %0) #3, !dbg !23    -> TAINT_NONE
+  ret i32 %call, !dbg !24    -> TAINT_DEFINITELY
+
+llvm.lifetime.start(i64 %0, i8* %1):
+llvm.lifetime.end(i64 %0, i8* %1):
+llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):

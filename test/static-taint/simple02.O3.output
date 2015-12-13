@@ -1,0 +1,12 @@
+f(i32 %x):
+entry:
+  tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !9, metadata !20), !dbg !21    -> TAINT_NONE
+  ret i32 %x, !dbg !22    -> TAINT_MAYBE(x)
+
+main():
+entry:
+  tail call void @llvm.dbg.value(metadata i32 1, i64 0, metadata !14, metadata !20), !dbg !23    -> TAINT_NONE
+  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !9, metadata !20), !dbg !24    -> TAINT_NONE
+  ret i32 0, !dbg !24    -> TAINT_NONE
+
+llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):

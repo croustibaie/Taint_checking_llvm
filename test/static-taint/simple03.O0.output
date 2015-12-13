@@ -11,15 +11,10 @@ main():
 entry:
   %retval = alloca i32, align 4    -> TAINT_DEFINITELY
   %i = alloca i32, align 4    -> TAINT_DEFINITELY
-  %l = alloca i32*, align 8    -> TAINT_DEFINITELY
   store i32 0, i32* %retval, align 4    -> TAINT_NONE
   call void @llvm.dbg.declare(metadata i32* %i, metadata !19, metadata !15), !dbg !20    -> TAINT_NONE
-  store i32 0, i32* %i, align 4, !dbg !16    -> TAINT_NONE
-  call void @llvm.dbg.declare(metadata i32** %l, metadata !21, metadata !15), !dbg !23    -> TAINT_NONE
-  %add.ptr = getelementptr inbounds i32, i32* %i, i64 1, !dbg !20    -> TAINT_DEFINITELY
-  store i32* %add.ptr, i32** %l, align 8, !dbg !19    -> TAINT_NONE
-  %0 = load i32*, i32** %l, align 8, !dbg !21    -> TAINT_MAYBE
-  %add.ptr1 = getelementptr inbounds i32, i32* %0, i64 -1, !dbg !22    -> TAINT_MAYBE
-  %1 = load i32, i32* %add.ptr1, align 4, !dbg !23    -> TAINT_MAYBE
-  ret i32 %1, !dbg !24    -> TAINT_MAYBE
+  store i32 1, i32* %i, align 4, !dbg !16    -> TAINT_NONE
+  %0 = ptrtoint i32* %i to i32, !dbg !17    -> TAINT_DEFINITELY
+  %call = call i32 @f(i32 %0), !dbg !18    -> TAINT_MAYBE
+  ret i32 %call, !dbg !19    -> TAINT_MAYBE
 
