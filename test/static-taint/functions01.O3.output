@@ -1,10 +1,10 @@
-i32 f(i32 %x):
-  ret i32 %x, !dbg !22    -> TAINT_NONE
--> TAINT_MAYBE(x)
-
 i32 main():
   ret i32 0, !dbg !24    -> TAINT_NONE
 -> TAINT_NONE
+
+i32 f(i32 %x):
+  ret i32 %x, !dbg !22    -> TAINT_NONE
+-> TAINT_MAYBE(x)
 
 void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):
 -> TAINT_NONE

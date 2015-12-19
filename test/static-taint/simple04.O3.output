@@ -1,16 +1,16 @@
 i32 f(i32 %x):
-entry:
   %x.addr = alloca i32, align 4    -> TAINT_DEFINITELY
-  tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !10, metadata !16), !dbg !17    -> TAINT_NONE
   %tobool = icmp ne i32 %x, 0, !dbg !18    -> TAINT_MAYBE(x)
   %0 = ptrtoint i32* %x.addr to i64, !dbg !19    -> TAINT_DEFINITELY
   %1 = trunc i64 %0 to i32, !dbg !19    -> TAINT_DEFINITELY
   %cond = select i1 %tobool, i32 %1, i32 15, !dbg !18    -> TAINT_MAYBE
-  ret i32 %cond, !dbg !21    -> TAINT_MAYBE
+  ret i32 %cond, !dbg !21    -> TAINT_NONE
+-> TAINT_MAYBE
 
 i32 main():
-entry:
-  tail call void @llvm.dbg.value(metadata i32 0, i64 0, metadata !10, metadata !16), !dbg !23    -> TAINT_NONE
   ret i32 15, !dbg !19    -> TAINT_NONE
+-> TAINT_NONE
 
 void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):
+-> TAINT_NONE
+
