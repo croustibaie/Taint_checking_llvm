@@ -81,7 +81,9 @@ namespace TaintAnalysis {
         }
 
         void visitBasicBlock(BasicBlock &b) {
-            errs() << b.getName() << ":\n";
+            if (&b.getParent()->getEntryBlock() != &b) { // don't print the entry block
+                errs() << b.getName() << ":\n";
+            }
         }
     };
 }

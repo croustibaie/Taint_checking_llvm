@@ -106,8 +106,21 @@ namespace TaintAnalysis {
         Taint visitAtomicRMWInst(AtomicRMWInst &I)      { return treatInstruction(I);}
         Taint visitFenceInst(FenceInst   &I)            { return treatInstruction(I);}
         Taint visitGetElementPtrInst(GetElementPtrInst &I){ return treatInstruction(I);}
-        Taint visitPHINode(PHINode &I) {
-            return treatInstruction(I);
+        Taint visitPHINode(PHINode &instr) {
+            auto it = taints.find(&instr);
+            if (it != taints.end()) {
+                return it->second;
+            }
+
+            Taint base = treatValue(instr.getIncomingValue(0));
+
+            for (int i = 1; i < instr.getNumIncomingValues(); ++i) {
+                if (treatValue(instr.getIncomingValue(i)) != base) {
+                    return taints[&instr] = Taint(TAINT_MAYBE);
+                }
+            }
+
+            return taints[&instr] = base;
         }
         
         Taint visitTruncInst(TruncInst &I)              { return treatInstruction(I);}
@@ -131,9 +144,6 @@ namespace TaintAnalysis {
 
             Taint trueTaint = treatValue(I.getTrueValue());
             Taint falseTaint = treatValue(I.getFalseValue());
-
-            TaintKind ttk = trueTaint.kind();
-            TaintKind ftk = falseTaint.kind();
 
             if (trueTaint == falseTaint) {
                 return taints[&I] = trueTaint;
