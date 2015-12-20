@@ -79,6 +79,10 @@ namespace TaintAnalysis {
                 errs() << "\n";
             }
         }
+
+        void visitBasicBlock(BasicBlock &b) {
+            errs() << b.getName() << ":\n";
+        }
     };
 }
 

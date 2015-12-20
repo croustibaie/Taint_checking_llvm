@@ -55,7 +55,8 @@ namespace TaintAnalysis {
             } else if (isa<Argument>(val)) {
                 return Taint({val});
             } else if (!isa<MetadataAsValue>(val)) {
-                assert(false); // NOT IMPLEMENTED
+                val->print(errs());
+                assert(false && "CASE NOT IMPLEMENTED");
             }
         }
 
@@ -66,7 +67,6 @@ namespace TaintAnalysis {
             }
             
             std::vector<Taint> opTaints;
-            
             for (int i = 0; i < instr.getNumOperands(); ++i) {
                 Value *op = instr.getOperand(i);
                 opTaints.push_back(treatValue(op));
@@ -79,7 +79,8 @@ namespace TaintAnalysis {
             retTaints.push_back(treatValue(I.getReturnValue()));
             return makeConstTaint(I, TAINT_NONE);
         }
-        Taint visitBranchInst(BranchInst &I)            { return treatInstruction(I);}
+        
+        Taint visitBranchInst(BranchInst &I)            { return makeConstTaint(I, TAINT_NONE);}
         Taint visitSwitchInst(SwitchInst &I)            { return treatInstruction(I);}
         Taint visitIndirectBrInst(IndirectBrInst &I)    { return treatInstruction(I);}
         Taint visitResumeInst(ResumeInst &I)            { return treatInstruction(I);}
@@ -105,7 +106,10 @@ namespace TaintAnalysis {
         Taint visitAtomicRMWInst(AtomicRMWInst &I)      { return treatInstruction(I);}
         Taint visitFenceInst(FenceInst   &I)            { return treatInstruction(I);}
         Taint visitGetElementPtrInst(GetElementPtrInst &I){ return treatInstruction(I);}
-        Taint visitPHINode(PHINode       &I)            { return treatInstruction(I);}
+        Taint visitPHINode(PHINode &I) {
+            return treatInstruction(I);
+        }
+        
         Taint visitTruncInst(TruncInst &I)              { return treatInstruction(I);}
         Taint visitZExtInst(ZExtInst &I)                { return treatInstruction(I);}
         Taint visitSExtInst(SExtInst &I)                { return treatInstruction(I);}
@@ -119,7 +123,7 @@ namespace TaintAnalysis {
         Taint visitIntToPtrInst(IntToPtrInst &I)        { return treatInstruction(I);}
         Taint visitBitCastInst(BitCastInst &I)          { return treatInstruction(I);}
         Taint visitAddrSpaceCastInst(AddrSpaceCastInst &I) { return treatInstruction(I);}
-        Taint visitSelectInst(SelectInst &I)            {
+        Taint visitSelectInst(SelectInst &I) {
             auto it = taints.find(&I);
             if (it != taints.end()) {
                 return it->second;
@@ -136,7 +140,7 @@ namespace TaintAnalysis {
             } else {
                 return taints[&I] = Taint(TAINT_MAYBE);
             }
-        }            
+        }
         
         Taint visitVAArgInst(VAArgInst   &I)            { return treatInstruction(I);}
         Taint visitExtractElementInst(ExtractElementInst &I) { return treatInstruction(I);}

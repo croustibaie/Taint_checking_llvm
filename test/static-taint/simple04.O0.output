@@ -1,1 +1,25 @@
-TODO
+
+i32 f(i32 %x):    -> TAINT_MAYBE
+entry:
+  %x.addr = alloca i32, align 4    -> TAINT_DEFINITELY
+  store i32 %x, i32* %x.addr, align 4    -> TAINT_NONE
+  %0 = load i32, i32* %x.addr, align 4, !dbg !17    -> TAINT_MAYBE
+  %tobool = icmp ne i32 %0, 0, !dbg !17    -> TAINT_MAYBE
+  br i1 %tobool, label %cond.true, label %cond.false, !dbg !17    -> TAINT_NONE
+cond.true:
+  %1 = ptrtoint i32* %x.addr to i32, !dbg !18    -> TAINT_DEFINITELY
+  br label %cond.end, !dbg !20    -> TAINT_NONE
+cond.false:
+  br label %cond.end, !dbg !21    -> TAINT_NONE
+cond.end:
+  %cond = phi i32 [ %1, %cond.true ], [ 15, %cond.false ], !dbg !17    -> TAINT_MAYBE
+  ret i32 %cond, !dbg !23    -> TAINT_NONE
+
+void llvm.dbg.declare(metadata %0, metadata %1, metadata %2):    -> TAINT_NONE
+
+i32 main():    -> TAINT_MAYBE
+entry:
+  %retval = alloca i32, align 4    -> TAINT_DEFINITELY
+  store i32 0, i32* %retval, align 4    -> TAINT_NONE
+  %call = call i32 @f(i32 0), !dbg !14    -> TAINT_MAYBE
+  ret i32 %call, !dbg !15    -> TAINT_NONE
