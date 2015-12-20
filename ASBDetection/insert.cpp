@@ -288,6 +288,32 @@ namespace {
         }
         
         Taint visitInstruction(Instruction &I) { return treatInstruction(I); }  // Ignore unhandled instructions
+
+        static bool visitFunction(Function& f) {
+            f.getReturnType()->print(errs());
+            errs() << " " << f.getName() << "(";
+            
+            std::string sep("");
+            const Function::ArgumentListType& argList = f.getArgumentList();
+            for (Function::ArgumentListType::const_iterator it = argList.begin(); it != argList.end(); ++it) {
+                errs() << sep;
+                it->print(errs());
+                sep = ", ";
+            }
+                
+            errs() << "):\n";
+            
+            TaintVisitor v;
+            v.visit(f);
+            Taint retTaint = v.getReturnTaint();
+            TaintVisitor::functionTaints[&f] = retTaint;
+            
+            errs() << "-> ";
+            retTaint.dump(errs());
+            errs() << "\n\n";
+            
+            return true; // TODO return if the taint has changed
+        }
     };
 
 
@@ -306,28 +332,8 @@ namespace {
             
             // iterate over the functions in the module
             for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
-                mi->getReturnType()->print(errs());
-                errs() << " " << mi->getName() << "(";
-
-                std::string sep("");
-                const Function::ArgumentListType& argList = mi->getArgumentList();
-                for (Function::ArgumentListType::const_iterator it = argList.begin(); it != argList.end(); ++it) {
-                    errs() << sep;
-                    it->print(errs());
-                    sep = ", ";
-                }
-                
-                errs() << "):\n";
-
-                TaintVisitor v;
-                v.visit(*mi);
                 Function& f = *mi;
-                Taint retTaint = v.getReturnTaint();
-                TaintVisitor::functionTaints[&f] = retTaint;
-
-                errs() << "-> ";
-                retTaint.dump(errs());
-                errs() << "\n\n";
+                TaintVisitor::visitFunction(f);
                 
                 // iterate over the basic blocks in the function
                 /*for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi) {
