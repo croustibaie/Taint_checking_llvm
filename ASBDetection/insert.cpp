@@ -1,6 +1,3 @@
-#include <assert.h>
-#include <set>
-
 #include "llvm/Pass.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
@@ -14,118 +11,21 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstVisitor.h"
 
+#include "taint.h"
+//#include "dump.h"
+
 using namespace llvm;
 
-namespace {
-    enum TaintKind {
-        TAINT_NONE,
-        TAINT_MAYBE,
-        TAINT_DEFINITELY
-    };
-
-    class Taint {
-    public:
-        typedef std::map<Value*, TaintKind> Tenv;
-
-        Taint() : _kind(TAINT_NONE) {}
-        Taint(const TaintKind tk) : _kind(tk) {}
-        Taint(std::initializer_list<Value*> paramsList) : _kind(TAINT_MAYBE), params(paramsList) {
-            assert(params.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
-        }
-        Taint(std::vector<Taint> opTaints) : _kind(TAINT_NONE) {
-            assert(opTaints.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
-
-            for (Taint t : opTaints) {
-                _kind = mergeTaintKinds(_kind, t.kind());
-                if (_kind == TAINT_DEFINITELY) {
-                    break;
-                }
-            }
-
-            // if this is not definitely tainted anyway we can merge all params together
-            if (_kind != TAINT_DEFINITELY) {
-                for (Taint t : opTaints) {
-                    params.insert(t.params.begin(), t.params.end());
-                }
-            }
-        }
-
-        static TaintKind mergeTaintKinds(TaintKind t1, TaintKind t2) {
-            switch (t1) {
-            case TAINT_NONE:
-                return t2;
-            case TAINT_MAYBE:
-                return (t2 == TAINT_DEFINITELY) ? t2 : TAINT_MAYBE;
-            case TAINT_DEFINITELY:
-                return TAINT_DEFINITELY;
-            default:
-                assert(false);
-            }
-        }
-
-        TaintKind evalKind(Tenv& env) {
-            if (params.empty()) {
-                return _kind;
-            } else {
-                TaintKind res = TAINT_NONE;
-                for (Value* param : params) {
-                    Tenv::iterator it = env.find(param);
-                    res = mergeTaintKinds(res, it == env.end() ? TAINT_MAYBE : it->second);
-                    if (res == TAINT_DEFINITELY) {
-                        break;
-                    }
-                }
-                return res;
-            }
-        }
-
-        void dump(raw_ostream& stream) {
-            switch (kind()) {
-            case TAINT_NONE:
-                stream << "TAINT_NONE";
-                break;
-            case TAINT_MAYBE:
-                stream << "TAINT_MAYBE";
-                break;
-            case TAINT_DEFINITELY:
-                stream << "TAINT_DEFINITELY";
-                break;
-            default:
-                assert(false);
-            }
-
-            if (!params.empty()) {
-                stream << "(";
-
-                std::string sep = "";
-                for (Value* param : params) {
-                    stream << sep << param->getName();
-                    sep = ", ";
-                }
-                
-                stream << ")";
-            }
-        }
-
-        TaintKind kind() {
-            return _kind;
-        }
-
-    private:
-        TaintKind _kind;
-        std::set<Value*> params;
-    };
-
+namespace TaintAnalysis {
     struct TaintVisitor : public InstVisitor<TaintVisitor, Taint> {
     private:
-        int verbosity;
         std::vector<Taint> retTaints;
 
     public:
         typedef std::map<Function*, Taint> FunTaints;
         static FunTaints functionTaints;
         
-        TaintVisitor() : verbosity(1) {}
+        TaintVisitor() {}
 
         Taint getReturnTaint() {
             if (retTaints.empty()) {
@@ -136,27 +36,11 @@ namespace {
         }
 
         Taint treatValue(Value* val) {
-            if (verbosity > 1) errs() << "    ";
-            if (verbosity > 1) val->printAsOperand(errs());
-
             if (isa<Constant>(val)) {
-                if (verbosity > 1) errs() << " :: CONSTANT -> TAINT_NONE";
-                if (verbosity > 1) errs() << "\n";
                 return Taint(TAINT_NONE);
             } else if (isa<Instruction>(val)) {
-                if (verbosity > 1) errs() << " :: INSTRUCTION -> ";
-                
-                int oldVerbosity = verbosity;
-                verbosity = 0;
-                Taint res = visit(dyn_cast<Instruction>(val));
-                verbosity = oldVerbosity;
-                
-                if (verbosity > 1) res.dump(errs());
-                if (verbosity > 1) errs() << "\n";
-                return res;
+                return visit(dyn_cast<Instruction>(val));
             } else if (isa<Argument>(val)) {
-                if (verbosity > 1) errs() << " :: ARGUMENT -> TAINT_MAYBE";
-                if (verbosity > 1) errs() << "\n";
                 return Taint({val});
             } else if (!isa<MetadataAsValue>(val)) {
                 assert(false); // NOT IMPLEMENTED
@@ -164,9 +48,6 @@ namespace {
         }
         
         Taint treatInstruction(Instruction &inst) {
-            if (verbosity > 0) inst.print(errs());
-            if (verbosity > 1) errs() << "  :\n";
-
             std::vector<Taint> opTaints;
             
             for (int i = 0; i < inst.getNumOperands(); ++i) {
@@ -174,36 +55,12 @@ namespace {
                 opTaints.push_back(treatValue(op));
             }
 
-            Taint taint = Taint(opTaints);
-            
-            if (verbosity > 0) errs() << "    -> ";
-            if (verbosity > 0) taint.dump(errs());
-            if (verbosity > 0) errs() << "\n";
-            
-            if (verbosity > 1) errs() << "\n";
-
-//            if (inst.getDebugLoc())
-//                errs() << inst.getDebugLoc().getLine();
-
-            return taint;
+            return Taint(opTaints);
         }
 
-        Taint printWithTaint(Instruction& instr, Taint t) {
-            if (verbosity > 0) {
-                instr.print(errs());
-                errs() << "    -> ";
-                t.dump(errs());
-                errs() << "\n";
-            }
-            if (verbosity > 1) {
-                errs() << "\n";
-            }
-            return t;
-        }
-        
         Taint visitReturnInst(ReturnInst &I)            {
             retTaints.push_back(treatValue(I.getReturnValue()));
-            return printWithTaint(I, Taint(TAINT_NONE));
+            return Taint(TAINT_NONE);
         }
         Taint visitBranchInst(BranchInst &I)            { return treatInstruction(I);}
         Taint visitSwitchInst(SwitchInst &I)            { return treatInstruction(I);}
@@ -219,13 +76,13 @@ namespace {
         Taint visitICmpInst(ICmpInst &I)                { return treatInstruction(I);}
         Taint visitFCmpInst(FCmpInst &I)                { return treatInstruction(I);}
         Taint visitAllocaInst(AllocaInst &I)            {
-            return printWithTaint(I, Taint(TAINT_DEFINITELY));
+            return Taint(TAINT_DEFINITELY);
         }
         Taint visitLoadInst(LoadInst     &I)            {
-            return printWithTaint(I, Taint(TAINT_MAYBE));
+            return Taint(TAINT_MAYBE);
         }
         Taint visitStoreInst(StoreInst   &I)            {
-            return printWithTaint(I, Taint(TAINT_NONE));
+            return Taint(TAINT_NONE);
         }
         Taint visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) { return treatInstruction(I);}
         Taint visitAtomicRMWInst(AtomicRMWInst &I)      { return treatInstruction(I);}
@@ -272,13 +129,13 @@ namespace {
         Taint visitCallInst(CallInst &I) {
             Function* f = I.getCalledFunction();
             if (f->getReturnType() == FunctionType::getVoidTy(I.getContext())) {
-                return printWithTaint(I, Taint(TAINT_NONE));
+                return Taint(TAINT_NONE);
             } else {
                 FunTaints::iterator it = functionTaints.find(f);
                 if (it != functionTaints.end()) {
-                    return printWithTaint(I, it->second);
+                    return it->second;
                 } else {
-                    return printWithTaint(I, Taint(TAINT_MAYBE));
+                    return Taint(TAINT_MAYBE);
                 }
             }
         }
@@ -289,30 +146,21 @@ namespace {
         
         Taint visitInstruction(Instruction &I) { return treatInstruction(I); }  // Ignore unhandled instructions
 
-        static bool visitFunction(Function& f) {
-            f.getReturnType()->print(errs());
-            errs() << " " << f.getName() << "(";
-            
-            std::string sep("");
-            const Function::ArgumentListType& argList = f.getArgumentList();
-            for (Function::ArgumentListType::const_iterator it = argList.begin(); it != argList.end(); ++it) {
-                errs() << sep;
-                it->print(errs());
-                sep = ", ";
-            }
-                
-            errs() << "):\n";
-            
+        /// @return true if the taint for this function changed
+        static bool globalVisitFunction(Function& f) {
             TaintVisitor v;
             v.visit(f);
             Taint retTaint = v.getReturnTaint();
+
+            bool taintChanged = true;
+            auto it = functionTaints.find(&f);
+            if (it != functionTaints.end()) {
+                taintChanged = retTaint != it->second;
+            }
+            
             TaintVisitor::functionTaints[&f] = retTaint;
-            
-            errs() << "-> ";
-            retTaint.dump(errs());
-            errs() << "\n\n";
-            
-            return true; // TODO return if the taint has changed
+
+            return taintChanged;
         }
     };
 
@@ -324,62 +172,31 @@ namespace {
         bishe_insert() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
-            // void print(int64)
-            /*LLVMContext& ctx = M.getContext();
-            Constant* hookFunc = M.getOrInsertFunction("print",
-                FunctionType::getVoidTy(ctx), Type::getInt64Ty(ctx), nullptr);
-                hook = cast<Function>(hookFunc);*/
-            
-            // iterate over the functions in the module
-            for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
-                Function& f = *mi;
-                TaintVisitor::visitFunction(f);
+            bool taintChanged = true;
+
+            while (taintChanged) {
+                taintChanged = false;
                 
-                // iterate over the basic blocks in the function
-                /*for (Function::iterator fi = mi->begin(), fe = mi->end(); fi != fe; ++fi) {
-                    fi->dump();
-                    if (fi->hasName())
-                    errs() << fi->getName();
-                    runOnBasicBlock(fi);
-                }*/
+                // iterate over the functions in the module
+                for (Module::iterator mi = M.begin(), me = M.end(); mi != me; ++mi) {
+                    Function& f = *mi;
+                    bool tc = TaintVisitor::globalVisitFunction(f);
+                    taintChanged |= tc;
+                }
+
+                // errs() << "--------------------------------------------------------------------------------\n\n";
             }
 
+            // dump the final taint results
+            //DumpTaintVisitor dumper();
+            
+            // the module was not modified -> return false
             return false;
         }
-        
-        virtual bool runOnBasicBlock(Function::iterator &fi) {
-            errs() << fi->getName() << ":\n";
-            
-
-            errs() << "\n";
-        
-            // Iterate over the items in the basic block
-            /*for (BasicBlock::iterator bi = fi->begin(), be = fi->end(); bi != be; ++bi) {
-                // find all cast instructions
-                if (CastInst* castInst = dyn_cast<CastInst>(bi)) {
-                    // only if this is a cast from ptr to int
-                    if (castInst->getSrcTy()->isPointerTy() && castInst->getDestTy()->isIntegerTy()) {
-                        //Value *operand = castInst->getOperand(0);
-                        //operand->printAsOperand(errs());
-                        //errs() << "\n";
-                        
-                        errs() << "Found cast instruction of type: ";
-                        castInst->getType()->print(errs());
-                        errs() << "\n";
-                        
-                        // create and insert the print instruction that prints the value of the pointer
-                        ArrayRef<Value*> args = ArrayRef<Value*>(castInst);
-                        Instruction *newInst = CallInst::Create(hook, args, "");
-                        fi->getInstList().insertAfter((Instruction*) castInst, newInst);
-                    }
-                }
-            }*/
-            return true;
-        }
     };
+
+    TaintVisitor::FunTaints TaintVisitor::functionTaints;
+
+    char bishe_insert::ID = 0;
+    static RegisterPass<bishe_insert> X("bishe_insert", "test function exist", false, false);
 }
-
-TaintVisitor::FunTaints TaintVisitor::functionTaints;
-
-char bishe_insert::ID = 0;
-static RegisterPass<bishe_insert> X("bishe_insert", "test function exist", false, false);
