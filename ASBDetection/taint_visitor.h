@@ -119,7 +119,25 @@ namespace TaintAnalysis {
         Taint visitIntToPtrInst(IntToPtrInst &I)        { return treatInstruction(I);}
         Taint visitBitCastInst(BitCastInst &I)          { return treatInstruction(I);}
         Taint visitAddrSpaceCastInst(AddrSpaceCastInst &I) { return treatInstruction(I);}
-        Taint visitSelectInst(SelectInst &I)            { return treatInstruction(I);}
+        Taint visitSelectInst(SelectInst &I)            {
+            auto it = taints.find(&I);
+            if (it != taints.end()) {
+                return it->second;
+            }
+
+            Taint trueTaint = treatValue(I.getTrueValue());
+            Taint falseTaint = treatValue(I.getFalseValue());
+
+            TaintKind ttk = trueTaint.kind();
+            TaintKind ftk = falseTaint.kind();
+
+            if (trueTaint == falseTaint) {
+                return taints[&I] = trueTaint;
+            } else {
+                return taints[&I] = Taint(TAINT_MAYBE);
+            }
+        }            
+        
         Taint visitVAArgInst(VAArgInst   &I)            { return treatInstruction(I);}
         Taint visitExtractElementInst(ExtractElementInst &I) { return treatInstruction(I);}
         Taint visitInsertElementInst(InsertElementInst &I) { return treatInstruction(I);}

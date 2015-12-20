@@ -25,6 +25,7 @@ namespace TaintAnalysis {
         Taint(std::set<Value*> paramsList) : _kind(TAINT_MAYBE), params(paramsList) {
             assert(params.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
         }
+        Taint(std::initializer_list<Taint> opTaints) : Taint(std::vector<Taint>(opTaints)) {}
         Taint(std::vector<Taint> opTaints) : _kind(TAINT_NONE) {
             assert(opTaints.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
 
@@ -40,6 +41,7 @@ namespace TaintAnalysis {
                 for (Taint t : opTaints) {
                     params.insert(t.params.begin(), t.params.end());
                 }
+                assert((_kind != TAINT_NONE || params.empty()) && "None-Taint must not have parameters");
             }
         }
 
