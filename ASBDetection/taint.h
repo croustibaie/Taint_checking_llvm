@@ -15,11 +15,14 @@ namespace TaintAnalysis {
 
     class Taint {
       public:
-        typedef std::map<Value*, TaintKind> Tenv;
+        typedef std::map<const Value*, Taint> Tenv;
 
         Taint() : _kind(TAINT_NONE) {}
         Taint(const TaintKind tk) : _kind(tk) {}
         Taint(std::initializer_list<Value*> paramsList) : _kind(TAINT_MAYBE), params(paramsList) {
+            assert(params.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
+        }
+        Taint(std::set<Value*> paramsList) : _kind(TAINT_MAYBE), params(paramsList) {
             assert(params.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
         }
         Taint(std::vector<Taint> opTaints) : _kind(TAINT_NONE) {
@@ -54,19 +57,32 @@ namespace TaintAnalysis {
             }
         }
 
-        TaintKind evalKind(Tenv& env) {
+        Taint apply(Tenv& env) {
             if (params.empty()) {
-                return _kind;
+                return *this;
             } else {
-                TaintKind res = TAINT_NONE;
+                std::set<Value*> unassignedParams;
+                std::vector<Taint> arguments;
+                
                 for (Value* param : params) {
                     Tenv::iterator it = env.find(param);
-                    res = mergeTaintKinds(res, it == env.end() ? TAINT_MAYBE : it->second);
-                    if (res == TAINT_DEFINITELY) {
-                        break;
+                    if (it == env.end()) {
+                        unassignedParams.insert(param);
+                    } else {
+                        // some speedup here
+                        if (it->second.kind() == TAINT_DEFINITELY) {
+                            return Taint(TAINT_DEFINITELY);
+                        }
+                        
+                        arguments.push_back(it->second);
                     }
                 }
-                return res;
+
+                if (!unassignedParams.empty()) {
+                    arguments.push_back(Taint(unassignedParams));
+                }
+                
+                return Taint(arguments);
             }
         }
 

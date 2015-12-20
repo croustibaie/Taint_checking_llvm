@@ -155,7 +155,19 @@ namespace TaintAnalysis {
             } else {
                 FunTaints::iterator fit = functionTaints.find(f);
                 if (fit != functionTaints.end()) {
-                    return taints[&I] = fit->second;
+                    Taint::Tenv argTaints;
+
+                    const Function::ArgumentListType& argList = f->getArgumentList();
+                    assert(I.getNumArgOperands() == argList.size());
+
+                    auto ait = argList.begin();
+                    for (int i = 0; i < I.getNumArgOperands(); ++i, ++ait) {
+                        Value* op = I.getArgOperand(i);
+                        const Value& arg = *ait;
+                        argTaints[&arg] = treatValue(op);
+                    }
+                    
+                    return taints[&I] = fit->second.apply(argTaints);
                 } else {
                     return makeConstTaint(I, TAINT_MAYBE);
                 }
