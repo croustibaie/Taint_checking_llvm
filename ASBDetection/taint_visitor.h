@@ -141,7 +141,9 @@ namespace TaintAnalysis {
         Taint visitVAStartInst(VAStartInst &I)          { return treatInstruction(I); }
         Taint visitVAEndInst(VAEndInst &I)              { return treatInstruction(I); }
         Taint visitVACopyInst(VACopyInst &I)            { return treatInstruction(I); }
-        Taint visitIntrinsicInst(IntrinsicInst &I)      { return treatInstruction(I); }
+        Taint visitIntrinsicInst(IntrinsicInst &I)      {
+            return makeConstTaint(I, TAINT_NONE); /* TODO is this correct? */
+        }
 
         Taint visitCallInst(CallInst &I) {
             auto it = taints.find(&I);
