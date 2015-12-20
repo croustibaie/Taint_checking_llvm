@@ -1,11 +1,7 @@
-i32 f(i32 %x):
+i32 f(i32 %x):    -> TAINT_MAYBE(x)
   ret i32 %x, !dbg !22    -> TAINT_NONE
--> TAINT_MAYBE(x)
 
-i32 main():
+i32 main():    -> TAINT_NONE
   ret i32 0, !dbg !23    -> TAINT_NONE
--> TAINT_NONE
 
-void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):
--> TAINT_NONE
-
+void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):    -> TAINT_NONE

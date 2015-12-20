@@ -1,21 +1,8 @@
-#ifndef TAINT_H
-#define TAINT_H
+#ifndef TAINT_ANALYSIS_TAINT_H
+#define TAINT_ANALYSIS_TAINT_H
 
 #include <assert.h>
 #include <set>
-
-#include "llvm/Pass.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Function.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/ADT/ArrayRef.h"
-
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstVisitor.h"
 
 using namespace llvm;
 
@@ -35,7 +22,24 @@ namespace TaintAnalysis {
         Taint(std::initializer_list<Value*> paramsList) : _kind(TAINT_MAYBE), params(paramsList) {
             assert(params.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
         }
-        Taint(std::vector<Taint> opTaints);
+        Taint(std::vector<Taint> opTaints) : _kind(TAINT_NONE) {
+            assert(opTaints.size() > 0 && "Use constructor 'Taint(const TaintKind)' instead");
+
+            for (Taint t : opTaints) {
+                _kind = mergeTaintKinds(_kind, t.kind());
+                if (_kind == TAINT_DEFINITELY) {
+                    break;
+                }
+            }
+
+            // if this is not definitely tainted anyway we can merge all params together
+            if (_kind != TAINT_DEFINITELY) {
+                for (Taint t : opTaints) {
+                    params.insert(t.params.begin(), t.params.end());
+                }
+            }
+        }
+
 
         static TaintKind mergeTaintKinds(TaintKind t1, TaintKind t2) {
             switch (t1) {

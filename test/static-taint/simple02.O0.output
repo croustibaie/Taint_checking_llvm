@@ -1,14 +1,12 @@
-i32 f(i32 %x):
+i32 f(i32 %x):    -> TAINT_MAYBE
   %x.addr = alloca i32, align 4    -> TAINT_DEFINITELY
   store i32 %x, i32* %x.addr, align 4    -> TAINT_NONE
   %0 = load i32, i32* %x.addr, align 4, !dbg !17    -> TAINT_MAYBE
   ret i32 %0, !dbg !18    -> TAINT_NONE
--> TAINT_MAYBE
 
-void llvm.dbg.declare(metadata %0, metadata %1, metadata %2):
--> TAINT_NONE
+void llvm.dbg.declare(metadata %0, metadata %1, metadata %2):    -> TAINT_NONE
 
-i32 main():
+i32 main():    -> TAINT_MAYBE
   %retval = alloca i32, align 4    -> TAINT_DEFINITELY
   %i = alloca i32, align 4    -> TAINT_DEFINITELY
   %ip = alloca i32*, align 8    -> TAINT_DEFINITELY
@@ -20,5 +18,3 @@ i32 main():
   %sub = sub nsw i32 %1, 1, !dbg !22    -> TAINT_MAYBE
   %call = call i32 @f(i32 %sub), !dbg !23    -> TAINT_MAYBE
   ret i32 %call, !dbg !24    -> TAINT_NONE
--> TAINT_MAYBE
-
