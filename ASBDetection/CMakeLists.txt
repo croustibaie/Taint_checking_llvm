@@ -18,4 +18,4 @@ endif()
 #  intrinsics_gen
 #  )
 
-add_library(LLVMasbDetection MODULE insert.cpp)
+add_library(LLVMasbDetection MODULE asb_detection.cpp)
