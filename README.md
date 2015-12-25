@@ -42,9 +42,8 @@ llvm-dis linked.bc && less linked.ll
 
 To run the pass on the bitcode:
 ```bash
-opt -S -load ../ASBDetection/libLLVMasbDetection.so -bishe_insert <linked.bc> instr.bc
+opt -S -load ../ASBDetection/libLLVMasbDetection.so -asb_decection < linked.bc > instr.bc
 ```
-*Note:* The <> around your bitcode is necessary
 
 To run `instr.bc`:
 ```bash

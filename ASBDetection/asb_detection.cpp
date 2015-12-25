@@ -1,6 +1,7 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 
 #include "taint.h"
 #include "taint_visitor.h"
@@ -9,10 +10,11 @@
 using namespace llvm;
 
 namespace TaintAnalysis {
-    struct bishe_insert : public ModulePass {
-        static char ID;  
+    struct ASBDetection : public ModulePass {
+        static char ID;
+        static cl::opt<bool> optionDumpTaint;
 
-        bishe_insert() : ModulePass(ID) {}
+        ASBDetection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
             bool taintChanged = true;
@@ -23,15 +25,20 @@ namespace TaintAnalysis {
                 // errs() << "--------------------------------------------------------------------------------\n\n";
             }
 
-            // dump the final taint results
-            DumpTaintVisitor dumper(10, vis);
-            dumper.visit(M);
+            if (optionDumpTaint) {
+                // dump the final taint results
+                DumpTaintVisitor dumper(10, vis);
+                dumper.visit(M);
+                return false;
+            }
             
             // the module was not modified -> return false
             return false;
         }
     };
 
-    char bishe_insert::ID = 0;
-    static RegisterPass<bishe_insert> X("bishe_insert", "test function exist", false, false);
+    cl::opt<bool> ASBDetection::optionDumpTaint("asb_detection_dump_taint", cl::desc("Dump the statically analysed taint information"));
+    
+    char ASBDetection::ID = 0;
+    static RegisterPass<ASBDetection> X("asb_detection", "test function exist", false, false);
 }
