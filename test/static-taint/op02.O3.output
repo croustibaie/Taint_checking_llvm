@@ -1,0 +1,15 @@
+
+i32 f(i32 %a, i32 %b):    -> TAINT_MAYBE
+  %cmp = icmp eq i32 %b, 0, !dbg !20    -> TAINT_MAYBE(b)
+  br i1 %cmp, label %cond.end, label %cond.false, !dbg !21    -> TAINT_NONE
+cond.false:
+  %div = sdiv i32 %a, %b, !dbg !22    -> TAINT_MAYBE(a, b)
+  br label %cond.end, !dbg !24    -> TAINT_NONE
+cond.end:
+  %cond = phi i32 [ %div, %cond.false ], [ 0, %entry ], !dbg !21    -> TAINT_MAYBE
+  ret i32 %cond, !dbg !25    -> TAINT_NONE
+
+i32 main():    -> TAINT_NONE
+  ret i32 0, !dbg !21    -> TAINT_NONE
+
+void llvm.dbg.value(metadata %0, i64 %1, metadata %2, metadata %3):    -> TAINT_NONE

@@ -6,7 +6,7 @@ while [[ "$1" == -* ]]; do
 done
 
 if [ -z "$1" ]; then
-    echo "Usage: show_taint.sh [arg] <bitcode-src> [instrumented dest]"
+    echo "Usage: asbdetect.sh [arg] <bitcode-src> [instrumented dest]"
     exit 1
 fi
 

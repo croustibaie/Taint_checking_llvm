@@ -1,0 +1,33 @@
+
+i32 main():    -> TAINT_MAYBE
+  %retval = alloca i32, align 4    -> TAINT_DEFINITELY
+  %a = alloca i32, align 4    -> TAINT_DEFINITELY
+  %b = alloca i32, align 4    -> TAINT_DEFINITELY
+  %ap = alloca i32*, align 8    -> TAINT_DEFINITELY
+  %bp = alloca i32*, align 8    -> TAINT_DEFINITELY
+  store i32 0, i32* %retval, align 4    -> TAINT_NONE
+  store i32 0, i32* %a, align 4, !dbg !13    -> TAINT_NONE
+  store i32 1, i32* %b, align 4, !dbg !15    -> TAINT_NONE
+  store i32* %a, i32** %ap, align 8, !dbg !18    -> TAINT_NONE
+  store i32* %b, i32** %bp, align 8, !dbg !20    -> TAINT_NONE
+  %0 = load i32, i32* %a, align 4, !dbg !21    -> TAINT_MAYBE
+  %1 = load i32, i32* %b, align 4, !dbg !22    -> TAINT_MAYBE
+  %add = add nsw i32 %0, %1, !dbg !23    -> TAINT_MAYBE
+  %2 = load i32, i32* %a, align 4, !dbg !24    -> TAINT_MAYBE
+  %cmp = icmp eq i32 %add, %2, !dbg !25    -> TAINT_MAYBE
+  br i1 %cmp, label %cond.true, label %cond.false, !dbg !26    -> TAINT_NONE
+cond.true:
+  %3 = load i32, i32* %a, align 4, !dbg !27    -> TAINT_MAYBE
+  %4 = load i32, i32* %b, align 4, !dbg !29    -> TAINT_MAYBE
+  %mul = mul nsw i32 %3, %4, !dbg !30    -> TAINT_MAYBE
+  br label %cond.end, !dbg !31    -> TAINT_NONE
+cond.false:
+  %5 = load i32, i32* %a, align 4, !dbg !32    -> TAINT_MAYBE
+  %6 = load i32, i32* %b, align 4, !dbg !34    -> TAINT_MAYBE
+  %div = sdiv i32 %5, %6, !dbg !35    -> TAINT_MAYBE
+  br label %cond.end, !dbg !36    -> TAINT_NONE
+cond.end:
+  %cond = phi i32 [ %mul, %cond.true ], [ %div, %cond.false ], !dbg !26    -> TAINT_MAYBE
+  ret i32 %cond, !dbg !37    -> TAINT_NONE
+
+void llvm.dbg.declare(metadata %0, metadata %1, metadata %2):    -> TAINT_NONE
