@@ -102,7 +102,7 @@ class CompilerOutputTest(Test):
     result = None
     
     def __init__(self, positive, base, src, res, options=[]):
-        super(CompilerOutputTest, self).__init__(base, src, options)
+        super(CompilerOutputTest, self).__init__(base, src, list(options))
         self.positive = positive
         self.result = res
     

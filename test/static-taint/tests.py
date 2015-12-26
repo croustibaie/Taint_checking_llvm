@@ -14,10 +14,12 @@ def allTests():
     """
     tests = make_tests("static-taint", True)
     
-    # mark optionals
     for test in tests:
+        # mark optionals
         if test.getName() in optionals:
             test.opt()
+
+        test.options.append("-asb_detection_dump_taint")
     
     return tests
 

@@ -28,7 +28,7 @@ def invoke(executable, directory, valgrind):
     infrastructure.tests.executeTests(tests, executable)
 
 def get_executable():
-    return os.path.join(".", "show_taint.sh")
+    return os.path.join(".", "asbdetect.sh")
     
 def main():
     executable = get_executable()
