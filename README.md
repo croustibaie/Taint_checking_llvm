@@ -50,6 +50,33 @@ To run `instr.bc`:
 lli instr.bc
 ```
 
+## How-To compile with dataflow sanitizer & intermediate bitcode
+The goal here is to compile with the dataflow sanitizer but with an intermediate output of the bitcode representation to allow calls to the `opt` command in between.
+
+Here is how to get the commands needed:
+
+1. Run `clang -fsanitize=dataflow -emit-llvm -c file.c -o file.bc` to generate bitcode
+2. Run `clang -v -fsanitize=dataflow file.c` (just to print the commands which we will need to generate object files)
+3. An adaption of the first command can be used to compile the bitcode into object code. Change it as follows and run it
+   a. Replace `-main-file-name file.c` with `-main-file-name file.bc`
+   b. Remove both the `-fsanitize=dataflow` and the `-fsanitize-blacklist=...` option
+   c. Change the `-o /tmp/file-*.o` option to `-o file.o`
+   d. Change the `-x c` to `-x ir`
+   e. Change the file name in the end from `file.c` to `file.bc`
+4. Change the file name in the linker command from `/tmp/file-*.o` to `file.o` and run it
+
+For example the commands could look as follows:
+
+```
+"/home/cui/gits/master/llvm-build/bin/clang-3.8" -cc1 -triple x86_64-unknown-linux-gnu -emit-obj -mrelax-all -disable-free -main-file-name foo.bc -mrelocation-model pic -pic-level 2 -pie-level 2 -mthread-model posix -mdisable-fp-elim -fmath-errno -masm-verbose -mconstructor-aliases -munwind-tables -fuse-init-array -target-cpu x86-64 -v -dwarf-column-info -resource-dir /home/cui/gits/master/llvm-build/bin/../lib/clang/3.8.0 -internal-isystem /usr/local/include -internal-isystem /home/cui/gits/master/llvm-build/bin/../lib/clang/3.8.0/include -internal-externc-isystem /include -internal-externc-isystem /usr/include -fdebug-compilation-dir /home/cui/gits/master/foo/bar -ferror-limit 19 -fmessage-length 151 -fobjc-runtime=gcc -fdiagnostics-show-option -o foo.o -x ir foo.bc
+```
+
+and
+
+```
+"/usr/bin/ld" -pie --hash-style=gnu --no-add-needed --build-id --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o a.out /usr/lib/gcc/x86_64-redhat-linux/5.3.1/../../../../lib64/Scrt1.o /usr/lib/gcc/x86_64-redhat-linux/5.3.1/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/5.3.1/crtbeginS.o -L/usr/lib/gcc/x86_64-redhat-linux/5.3.1 -L/usr/lib/gcc/x86_64-redhat-linux/5.3.1/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/5.3.1/../../.. -L/home/cui/gits/master/llvm-build/bin/../lib -L/lib -L/usr/lib -whole-archive /home/cui/gits/master/llvm-build/bin/../lib/clang/3.8.0/lib/linux/libclang_rt.dfsan-x86_64.a -no-whole-archive --dynamic-list=/home/cui/gits/master/llvm-build/bin/../lib/clang/3.8.0/lib/linux/libclang_rt.dfsan-x86_64.a.syms foo.o --no-as-needed -lpthread -lrt -lm -ldl -lgcc --as-needed -lgcc_s --no-as-needed -lc -lgcc --as-needed -lgcc_s --no-as-needed /usr/lib/gcc/x86_64-redhat-linux/5.3.1/crtendS.o /usr/lib/gcc/x86_64-redhat-linux/5.3.1/../../../../lib64/crtn.o
+```
+
 ## TODO
 
 To apply `TNT_MAKE_MEM_CHECK`, we need to find a way to first take the address of our cast variable and cast it as a `void*`. We also need the pass to get the size of the variable since `TNT_MAKE_MEM_CHECK` requires both the address and the length.
