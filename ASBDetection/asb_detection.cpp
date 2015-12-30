@@ -5,6 +5,7 @@
 
 #include "taint.h"
 #include "taint_visitor.h"
+#include "instr_taintgrind.h"
 #include "dump.h"
 
 using namespace llvm;
@@ -14,10 +15,16 @@ namespace TaintAnalysis {
         static char ID;
         static cl::opt<bool> optionDumpTaint;
         static cl::opt<bool> optionCheckTaint;
+        static cl::opt<bool> optionInstrumentOnly;
 
         ASBDetection() : ModulePass(ID) {}
 
         virtual bool runOnModule(Module &M) {
+            if (optionInstrumentOnly) {
+                InstrTaintgrindVisitor instrv;
+                return instrv.instrumentModule(M);
+            }
+            
             bool taintChanged = true;
             TaintVisitor vis;
             
@@ -41,6 +48,7 @@ namespace TaintAnalysis {
 
     cl::opt<bool> ASBDetection::optionDumpTaint("asb_detection_dump_taint", cl::desc("Dump the statically analysed taint information"));
     cl::opt<bool> ASBDetection::optionCheckTaint("asb_detection_check_taint", cl::desc("Check the static taint but do not instrument"));
+    cl::opt<bool> ASBDetection::optionInstrumentOnly("asb_detection_instr_only", cl::desc("Only instrument but don't run static checks"));
     
     char ASBDetection::ID = 0;
     static RegisterPass<ASBDetection> X("asb_detection", "test function exist", false, false);
