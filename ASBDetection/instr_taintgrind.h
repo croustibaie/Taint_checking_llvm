@@ -57,7 +57,7 @@ namespace TaintAnalysis {
 
                 // 2. Store the value in a newly allocated memory cell
                 AllocaInst* taintCell = builder.CreateAlloca(taintSource->getType(), nullptr, "taintCell"); // TODO align 4?
-                Instruction* storeV = builder.CreateStore(taintSource, taintCell); // TODO align??
+                Instruction* storeTaintSrc = builder.CreateStore(taintSource, taintCell); // TODO align??
 
                 logState(endBlock->getParent());
                 
@@ -110,6 +110,16 @@ namespace TaintAnalysis {
                 logState(endBlock->getParent());
                 
                 // TODO 4. load the value from memory again and replace all usages of the taint source with the loaded value
+                Value* taintedPtr = builder.CreateLoad(taintCell, "tainted_" + taintSource->getName());
+
+                for (auto uit = taintSource->use_begin(); uit != taintSource->use_end(); ++uit) {
+                    User* user = uit->getUser();
+                    if (user != storeTaintSrc) {
+                        // replace the taintSource with the taintedPtr
+                        user->replaceUsesOfWith(taintSource, taintedPtr);
+                    }
+                }
+                
                 logState(endBlock->getParent());
 
                 // 5. branch to the endBlock
