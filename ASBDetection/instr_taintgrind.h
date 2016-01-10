@@ -11,6 +11,7 @@ namespace TaintAnalysis {
     struct InstrTaintgrindVisitor : public InstVisitor<InstrTaintgrindVisitor> {
     private:
         std::vector<Instruction*> taintSources;
+        int logLevel = 20; // log everything with level >=
 
     public:
         InstrTaintgrindVisitor() {}
@@ -34,10 +35,10 @@ namespace TaintAnalysis {
                 IRBuilder<> builder(getGlobalContext());
                 builder.SetInsertPoint(startBlock);
 
-                // TODO 1. move all instructions after the source to a new BasicBlock
-                BasicBlock* doBodyBlock = BasicBlock::Create(getGlobalContext(), "doBody", startBlock->getParent());
+                // 1. move all instructions after the source to a new BasicBlock
+                BasicBlock* doBodyBlock = BasicBlock::Create(getGlobalContext(), "doBody_" + taintSource->getName(), startBlock->getParent());
                 
-                BasicBlock* endBlock = BasicBlock::Create(getGlobalContext(), "instrEnd", startBlock->getParent());
+                BasicBlock* endBlock = BasicBlock::Create(getGlobalContext(), "instrEnd_" + taintSource->getName(), startBlock->getParent());
                 bool move = false;
                 std::vector<Instruction*> toMove;
                 for (auto it2 = startBlock->begin(); it2 != startBlock->end(); ++it2) {
@@ -53,15 +54,15 @@ namespace TaintAnalysis {
                     endBlock->getInstList().push_back(*it3);
                 }
 
-                logState(endBlock->getParent());
+                logState(10, endBlock->getParent());
 
                 // 2. Store the value in a newly allocated memory cell
-                AllocaInst* taintCell = builder.CreateAlloca(taintSource->getType(), nullptr, "taintCell"); // TODO align 4?
+                AllocaInst* taintCell = builder.CreateAlloca(taintSource->getType(), nullptr, "taintCell_" + taintSource->getName()); // TODO align 4?
                 Instruction* storeTaintSrc = builder.CreateStore(taintSource, taintCell); // TODO align??
 
-                logState(endBlock->getParent());
+                logState(10, endBlock->getParent());
                 
-                // TODO 3. insert the taintgrind instrumentation
+                // 3. insert the taintgrind instrumentation
                 // 3.a) create a taint label
                 Value* taintLabel = builder.CreateGlobalStringPtr("taintBlue", "taintLabel"); // TODO align 1?
                 
@@ -107,9 +108,9 @@ namespace TaintAnalysis {
                 builder.CreateStore(zzq_resultLoad, tmp); // TODO align 8?
                 builder.CreateLoad(tmp); // TODO align 8?
                 
-                logState(endBlock->getParent());
+                logState(10, endBlock->getParent());
                 
-                // TODO 4. load the value from memory again and replace all usages of the taint source with the loaded value
+                // 4. load the value from memory again and replace all usages of the taint source with the loaded value
                 Value* taintedPtr = builder.CreateLoad(taintCell, "tainted_" + taintSource->getName());
 
                 for (auto uit = taintSource->use_begin(); uit != taintSource->use_end(); ++uit) {
@@ -120,20 +121,22 @@ namespace TaintAnalysis {
                     }
                 }
                 
-                logState(endBlock->getParent());
+                logState(10, endBlock->getParent());
 
                 // 5. branch to the endBlock
                 builder.CreateBr(endBlock);
 
-                logState(endBlock->getParent());
+                logState(20, endBlock->getParent());
             }
             
             return !taintSources.empty();
         }
 
-        void logState(Function* f) {
-            f->print(errs());
-            errs() << "\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        void logState(int logLevel, Function* f) {
+            if (logLevel >= this->logLevel) {
+                f->print(errs());
+                errs() << "\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+            }
         }
 
         /// @return true if the module was modified

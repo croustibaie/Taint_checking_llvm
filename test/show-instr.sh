@@ -5,5 +5,10 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
+cat "$1"
+echo
+echo "---------------------------------------------------------------------"
+echo
+
 ./asbdetect.sh -asb_detection_instr_only "$1" "/tmp/dest.ll"
-#cat /tmp/dest.ll
+cat /tmp/dest.ll
