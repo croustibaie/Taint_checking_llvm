@@ -18,6 +18,9 @@ from infrastructure.timed_process import CompileProcess
 import os, sys, getopt, subprocess
 
 def invoke(executable, directory, valgrind):
+    os.system("make -C '%s' all" % directory)
+    print("-" * 80)
+    
     print("Using '%s' as executable." % executable)
     
     tests = infrastructure.tests.get_tests_from_dir(directory)

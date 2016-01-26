@@ -200,16 +200,16 @@ class InvokeTest(Test):
         return True
 
 def get_tests(directory):
-    """A generator for test files based on the .bc files in directory
+    """A generator for test files based on the .ll files in directory
     
     Output files are expected to have the same name but with .output extension.
     If no output file is found for a test no output is assumed.
     
-    This yields (test_file, output_file) for each .bc file in the directory"""
+    This yields (test_file, output_file) for each .ll file in the directory"""
     tests = []
 
     for testfile in os.listdir(directory):
-        if os.path.splitext(testfile)[1] == ".bc":
+        if os.path.splitext(testfile)[1] == ".ll":
             of = os.path.splitext(testfile)[0] + ".output"
             res = of if os.path.exists(os.path.join(directory, of)) else None
             yield (testfile, res)
