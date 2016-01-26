@@ -1,11 +1,14 @@
-.PHONY: static-taint instr
+.PHONY: static-taint instr clean
+
+DIRS := static-taint instr
 
 default: all
 
-static-taint:
-	$(MAKE) -C static-taint
+%.static-taint:
+	$(MAKE) -C static-taint $*
 
-instr:
-	$(MAKE) -C instr
+%.instr:
+	$(MAKE) -C instr $*
 
-all: static-taint instr
+all: $(addprefix all.,$(DIRS))
+clean: $(addprefix clean.,$(DIRS))

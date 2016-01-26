@@ -1,3 +1,5 @@
+.PHONY: clean
+
 default: all
 
 C_FILES := $(wildcard *.c)
@@ -17,3 +19,6 @@ O1: $(C_FILES:.c=.O1.ll)
 O3: $(C_FILES:.c=.O3.ll)
 
 all: O0 O1 O3
+
+clean:
+	rm *.ll
