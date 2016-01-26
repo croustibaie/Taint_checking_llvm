@@ -1,12 +1,12 @@
 #!/bin/sh
 
-while [[ "$1" == -* ]]; do
+while [[ -n "$1" && "$1" != *.ll && "$1" != *.bc ]]; do
     ARGS="$ARGS $1"
     shift
 done
 
 if [ -z "$1" ]; then
-    echo "Usage: asbdetect.sh [arg] <bitcode-src> [instrumented dest]"
+    echo "Usage: asbdetect.sh [args] <bitcode-src> [instrumented dest]"
     exit 1
 fi
 

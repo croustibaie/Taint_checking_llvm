@@ -11,10 +11,11 @@ namespace TaintAnalysis {
     struct InstrTaintgrindVisitor : public InstVisitor<InstrTaintgrindVisitor> {
     private:
         std::vector<Instruction*> taintSources;
-        int logLevel = 20; // log everything with level >=
+        int logLevel = 10; // log everything with level <=
 
     public:
         InstrTaintgrindVisitor() {}
+        InstrTaintgrindVisitor(int logLevel) : logLevel(logLevel) {}
 
         void visitAllocaInst(AllocaInst &I) {
             taintSources.push_back(&I);
@@ -133,7 +134,7 @@ namespace TaintAnalysis {
         }
 
         void logState(int logLevel, Function* f) {
-            if (logLevel >= this->logLevel) {
+            if (logLevel <= this->logLevel) {
                 f->print(errs());
                 errs() << "\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
             }
