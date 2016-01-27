@@ -17,24 +17,21 @@ import infrastructure.tests
 from infrastructure.timed_process import CompileProcess
 import os, sys, getopt, subprocess
 
-def invoke(executable, directory, valgrind):
+def invoke(directory, valgrind):
     os.system("make -C '%s' all" % directory)
     print("-" * 80)
-    
-    print("Using '%s' as executable." % executable)
-    
+        
     tests = infrastructure.tests.get_tests_from_dir(directory)
     
     if valgrind:
         tests = [infrastructure.tests.ValgrindTest(t) for t in tests]
     
-    infrastructure.tests.executeTests(tests, executable)
+    infrastructure.tests.executeTests(tests)
 
 def get_executable():
     return os.path.join(".", "asbdetect.sh")
     
 def main():
-    executable = get_executable()
     valgrind = False
     
     # get cmd file
@@ -49,8 +46,6 @@ def main():
         if o in ("-h", "--help"):
             print(__doc__)
             sys.exit(0)
-        if o in ("-e", "--executable"):
-            executable = a
         if o in ("-t", "--compiler-timeout"):
             CompileProcess.timeout = float(a)
         if o in ("-L", "--valgrind"):
@@ -66,6 +61,6 @@ def main():
     else:
         directory = args[0]
 
-    invoke(executable, directory, valgrind)
+    invoke(directory, valgrind)
 
 main()

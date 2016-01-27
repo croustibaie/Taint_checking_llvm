@@ -16,5 +16,5 @@ echo
 echo "---------------------------------------------------------------------"
 echo
 
-./asbdetect.sh -asb_detection_instr_only "$1" "$DEST"
+$(dirname $0)/asbdetect.sh -asb_detection_instr_only "$1" "$DEST"
 cat "$DEST"

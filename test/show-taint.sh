@@ -5,4 +5,4 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-exec ./asbdetect.sh -asb_detection_dump_taint "$1"
+exec $(dirname $0)/asbdetect.sh -asb_detection_dump_taint "$1"

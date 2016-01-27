@@ -1,5 +1,5 @@
 """
-tests.py for static taint analysis tests
+tests.py for dynamic taint analysis tests
 """
 
 # import the test infrastructure
@@ -12,12 +12,14 @@ def allTests():
     """
     This function returns a list of tests.
     """
-    tests = make_tests("static-taint", "show-taint.sh", True)
+    tests = make_tests("instr", "dyntaint.sh", True)
     
     for test in tests:
         # mark optionals
         if test.getName() in optionals:
             test.opt()
-    
+
+        test.timeoutFactor = 3
+            
     return tests
 
