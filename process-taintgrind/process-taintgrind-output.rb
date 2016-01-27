@@ -2,6 +2,7 @@
 
 require "set"
 require "colored.rb"
+require "pathname"
 require_relative "util.rb"
 
 class TaintGrindOp
@@ -61,6 +62,12 @@ class TaintGrindOp
     if @lineno.nil?
       @file, @lineno = @@debug.addr2line(@file, @addr)
     end
+    if not File.file?(@file)
+      poss_files = guess_path(@file)
+      poss_files.map! { |f| File.read(f).split("\n")[self.get_lineno-1].nil? ? nil : f }
+      poss_file = poss_files.find { |f| not f.nil? }
+      @file = File.expand_path(poss_file) if not poss_file.nil?
+    end
     return @file
   end
   
@@ -82,17 +89,20 @@ class TaintGrindOp
   
   def get_src_line
     begin
-      return File.read(self.get_file).split("\n")[self.get_lineno-1]
+      return File.read(self.get_file).split("\n")[self.get_lineno-1].strip
     rescue
-      return ""
+      return "[file not found]"
     end
   end
 
   def to_s
     line = self.get_src_line
     line = line.red if self.is_sink and not line.nil?
+
+    file = Pathname.new(self.get_file)
+    file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
     
-    return "#@func (#{self.get_file}:#{self.get_lineno}):  #{line}"
+    return "%30s:%.3d: %20s:  %s" % [file.to_s, self.get_lineno, @func, line]
   end
   
   def get_sources
