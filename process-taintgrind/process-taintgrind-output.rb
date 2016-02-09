@@ -91,13 +91,14 @@ class TaintGrindOp
     begin
       return File.read(self.get_file).split("\n")[self.get_lineno-1].strip
     rescue
-      return "[file not found]"
+      return nil
     end
   end
 
   def to_s
     line = self.get_src_line
-    line = line.red if self.is_sink and not line.nil?
+    line = "[file not found]" if line.nil?
+    line = line.red if self.is_sink
 
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
@@ -185,15 +186,17 @@ Flags:
                       current working directory. Default is no.
  -tmp-instr=yes|no    In the traces, show lines that affect only temporary
                       variables inserted by valgrind. Default is no.
- -unique-locs=yes|no  In the traces, show the same source location twice (e.g.
-                      in a loop). This makes the trace more complete but can
-                      lead to very big traces. Default is yes.
+ -unique-locs=yes|no  In the traces, don't show the same source location twice
+                      (e.g. in a loop). This makes the trace incomplete but
+                      avoids very big traces. Default is no.
  -src-only            Show only the sources, not the full trace.
+ -taintgrind-trace    Show the taintgrind trace for the identified sinks.
 HELP
 
+taintgrind_trace = false
 nolib = true
 notmp = true
-unique_locs = true
+unique_locs = false
 src_only = false
 
 loop do
@@ -212,6 +215,9 @@ loop do
     ARGV.shift
   when "-src-only"
     src_only = true
+    ARGV.shift
+  when "-taintgrind-trace"
+    taintgrind_trace = true
     ARGV.shift
   when /^-/
     puts "Unrecognized argument #{ARGV[0]}"
@@ -269,7 +275,10 @@ sinks.each do |sink|
     if src_only
       puts src
     else
-      puts src.get_trace_to_sink
+      trace = src.get_trace_to_sink
+      trace.map! { |n| n.line } if taintgrind_trace
+      
+      puts trace
     end
     puts "="*80
   end
