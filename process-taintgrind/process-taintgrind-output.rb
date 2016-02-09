@@ -28,19 +28,24 @@ class TaintGrindOp
       @file = $3
       @lineno = nil
     end
-    
-    if elems[4] =~ /^(.+?) <- (.+?)$/ # e.g. t54_1741 <- t42_1773, t29_4179
-      @var = $1
-      @from = $2.split(", ")
-    elsif elems[4] =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
-      @var = $1
-      @from = $2.split(", ")
-      #@is_sink = true
-    else  # e.g. t54_1741
-      @var = elems[4]
-      @from = []
-    end
 
+    preds = elems[4].split("; ")
+    @from = []
+    @var = nil
+    
+    preds.each do |pred|
+      if pred =~ /^(.+?) <- (.+?)$/ # e.g. t54_1741 <- t42_1773, t29_4179
+        self.set_var($1)
+        @from += $2.split(", ")
+      elsif pred =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
+        self.set_var($1)
+        @from += $2.split(", ")
+        #@is_sink = true
+      else  # e.g. t54_1741
+        @var = pred
+      end
+    end
+    
     # is this a sink?
     # TODO this is just a basic approximation
     if elems[1].start_with?("IF ") or elems[1] =~ / = Add32/
@@ -49,6 +54,14 @@ class TaintGrindOp
     
     @preds = []
     @successor = nil
+  end
+
+  def set_var(var)
+    if @var.nil?
+      @var = var
+    elsif @var != var
+      raise RuntimeError.new("two different var values: #{@var} != #{var}")
+    end
   end
 
   def get_lineno
