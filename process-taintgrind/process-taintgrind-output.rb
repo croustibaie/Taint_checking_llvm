@@ -5,6 +5,9 @@ require "colored.rb"
 require "pathname"
 require_relative "util.rb"
 
+$idxwidth = 8
+$verbose = false
+
 class TaintGrindOp
   @@debug = Debug.new
   
@@ -12,7 +15,8 @@ class TaintGrindOp
     return line.split(" | ").length == 5
   end
   
-  def initialize(line)
+  def initialize(line, idx)
+    @idx = idx
     @line = line
     @is_sink = false
   
@@ -38,9 +42,11 @@ class TaintGrindOp
         self.set_var($1)
         @from += $2.split(", ")
       elsif pred =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
-        self.set_var($1)
-        @from += $2.split(", ")
-        #@is_sink = true
+#        self.set_var($1)
+#        @from += $2.split(", ")
+      #@is_sink = true
+      elsif pred =~ /^(.+?) <-\*- (.+?)$/ # e.g. t78_744 <-*- t72_268
+        # do nothing? like above
       else  # e.g. t54_1741
         @var = pred
       end
@@ -116,7 +122,7 @@ class TaintGrindOp
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
     
-    return "%30s:%.3d: %20s:  %s" % [file.to_s, self.get_lineno, @func, line]
+    return "%30s:%.4d: %20s:  %s" % [file.to_s, self.get_lineno, @func, line]
   end
   
   def get_sources
@@ -127,17 +133,34 @@ class TaintGrindOp
     visited = Set.new
     
     while not stack.empty?
+      print "%20s  " % stack.map{|n|n.idx}.inspect if $verbose
       op = stack.pop
       
-      next if visited.include? op
+      if visited.include? op
+        puts "already visited #{op.idx}, skipping" if $verbose
+        next
+      end
       visited.add op
+
+      if $verbose
+        w = 3
+        print "detecting %#{$idxwidth}d" % op.idx
+        print(op.successor.nil? ? " "*(6+$idxwidth) : (" from %#{$idxwidth}d" % op.successor.idx))
+        print "  --  "
+      end
       
       if op.is_source?
+        puts "found source" if $verbose
         sources.push((not block_given? or yield op) ? op : op.successor)
       else
+        puts "adding preds #{op.preds.map{|p|p.idx}.inspect}" if $verbose
         successor = (op.successor.nil? or not block_given? or yield op) ? op : op.successor
-        op.preds.each { |p| p.successor = successor } # link from where we found this one
-        stack.concat op.preds
+        op.preds.each do |p|
+          if p.successor.nil? # if this one already has a successor the other one will be shorter
+            p.successor = successor  # link from where we found this one
+            stack.push p
+          end
+        end
       end
     end
     
@@ -177,7 +200,7 @@ class TaintGrindOp
     return trace
   end
   
-  attr_reader :func, :var, :from, :preds, :is_sink, :line
+  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx
   attr_accessor :successor
 end
 
@@ -193,6 +216,7 @@ conditions. Tainted values are values derived from casts from pointers to
 integrals.
 
 Flags:
+ -v, --verbose        Verbose mode
  -libs=yes|no         In the traces, show lines that are located in 3rd-party-
                       libraries. Specifically, a line is considered to be in a
                       library, if the source file cannot be found below the
@@ -204,9 +228,12 @@ Flags:
                       avoids very big traces. Default is no.
  -src-only            Show only the sources, not the full trace.
  -taintgrind-trace    Show the taintgrind trace for the identified sinks.
+ -mark-trace          For each trace print the whole taintgrind log but mark
+                      the trace using color
 HELP
 
 taintgrind_trace = false
+mark_trace = false
 nolib = true
 notmp = true
 unique_locs = false
@@ -217,6 +244,9 @@ loop do
   when "-h", "--help", "-help"
     puts HELPTEXT
     exit
+  when "-v", "--verbose"
+    $verbose = true
+    ARGV.shift
   when /^-libs=(yes|no)$/
     nolib = $1 == "no"
     ARGV.shift
@@ -232,6 +262,9 @@ loop do
   when "-taintgrind-trace"
     taintgrind_trace = true
     ARGV.shift
+  when "-mark-trace"
+    mark_trace = true
+    ARGV.shift
   when /^-/
     puts "Unrecognized argument #{ARGV[0]}"
     exit
@@ -246,12 +279,15 @@ end
 taintgrind_ops = {}
 sinks = []
 
-ARGF.read.split("\n").each do |line|
+input_lines = ARGF.read.split("\n")
+$idxwidth = input_lines.length.to_s.length
+
+input_lines.each_with_index do |line, idx|
   if not TaintGrindOp.is_taintgrindop_line? line
     next
   end
   
-  tgo = TaintGrindOp.new(line)
+  tgo = TaintGrindOp.new(line, idx)
   
   # link to predecessors
   tgo.from.each do |fromvar|
@@ -284,15 +320,25 @@ sinks.each do |sink|
     (not nolib or TaintGrindOp.sources_no_lib.call(op)) }
   
   sources.each do |src|
-    puts ">>>> The evil cast should occur just before that <<<<"
+    puts ">>>> The origin of the taint should be just here <<<<"
     if src_only
       puts src
     else
       trace = src.get_trace_to_sink
-      trace.map! { |n| n.line } if taintgrind_trace
-      
-      puts trace
+
+      if mark_trace
+        output = input_lines.clone
+        trace.each do |n|
+          output[n.idx] = n.is_sink ? output[n.idx].red : output[n.idx].blue
+        end
+        output.each_with_index do |l,idx|
+          puts "%8d   %s" % [idx, l]
+        end
+      else
+        trace.map! { |n| n.line } if taintgrind_trace
+        puts trace
+      end
     end
-    puts "="*80
+    puts ("="*80).yellow
   end
 end
