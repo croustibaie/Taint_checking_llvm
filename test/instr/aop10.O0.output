@@ -1,1 +1,8 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+                       aop10.c:0005:                 main:  int main() {
+                       aop10.c:0008:                 main:  int* xp = &x;
+                       aop10.c:0009:                 main:  return f((int) xp, y);
+                       aop10.c:0001:                    f:  int f(int a, int b) {
+                       aop10.c:0001:                    f:  int f(int a, int b) {
+                       aop10.c:0002:                    f:  return a*b;
+================================================================================

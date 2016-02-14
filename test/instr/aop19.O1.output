@@ -1,1 +1,4 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+                       aop19.c:0005:                 main:  int main() {
+                       aop19.c:0009:                 main:  return f(x, (int) yp);
+================================================================================

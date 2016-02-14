@@ -19,22 +19,21 @@ class TaintGrindOp
   def initialize(line, idx)
     @idx = idx
     @line = line
-    @is_sink = false
-  
-    elems = line.split(" | ")
-    if elems[0] =~ /(0x\w+): (.+?) \((.+):(\d+)\)/  # e.g. 0x40080D: main (two-taints.c:10)
+
+    loc, cmd, val, tnt, tnt_flow = line.split(" | ")
+    if loc =~ /(0x\w+): (.+?) \((.+):(\d+)\)/  # e.g. 0x40080D: main (two-taints.c:10)
       @addr = $1
       @func = $2
       @file = $3
       @lineno = $4.to_i
-    elsif elems[0] =~ /(0x\w+): (.+?) \(in (.+)\)/  # e.g. 0x40080D: main (in /tmp/a.out)
+    elsif loc =~ /(0x\w+): (.+?) \(in (.+)\)/  # e.g. 0x40080D: main (in /tmp/a.out)
       @addr = $1
       @func = $2
       @file = $3
       @lineno = nil
     end
 
-    preds = elems[4].split("; ")
+    preds = tnt_flow.split("; ")
     @from = []
     @var = nil
     
@@ -52,11 +51,20 @@ class TaintGrindOp
         @var = pred
       end
     end
-    
+
     # is this a sink?
-    # TODO this is just a basic approximation
-    if elems[1].start_with?("IF ") or elems[1] =~ / = Add32/
-      @is_sink = true
+    @is_sink = ((cmd =~ / = Add/ and @from.length > 1) or
+                (cmd =~ / = Sub/ and @from.length > 1) or
+                (cmd =~ / = Mul/) or
+                (cmd =~ / = Div/) or
+                (cmd =~ / = Mod/) or
+                (cmd =~ / = Shl/))
+
+    if !@is_sink
+      # special cases
+      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
+        @is_sink = $1 == @from[0]
+      end
     end
     
     @preds = []

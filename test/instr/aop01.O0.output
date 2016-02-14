@@ -1,16 +1,16 @@
 >>>> The origin of the taint should be just here <<<<
-                        op01.c:0005:                 main:  int main() {
-                        op01.c:0009:                 main:  int* yp = &y;
-                        op01.c:0010:                 main:  return f((int) xp, (int) yp);
-                        op01.c:0001:                    f:  int f(int a, int b) {
-                        op01.c:0001:                    f:  int f(int a, int b) {
-                        op01.c:0002:                    f:  return a+b;
+                       aop01.c:0005:                 main:  int main() {
+                       aop01.c:0009:                 main:  int* yp = &y;
+                       aop01.c:0010:                 main:  return f((int) xp, (int) yp);
+                       aop01.c:0001:                    f:  int f(int a, int b) {
+                       aop01.c:0001:                    f:  int f(int a, int b) {
+                       aop01.c:0002:                    f:  return a+b;
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
-                        op01.c:0005:                 main:  int main() {
-                        op01.c:0008:                 main:  int* xp = &x;
-                        op01.c:0010:                 main:  return f((int) xp, (int) yp);
-                        op01.c:0001:                    f:  int f(int a, int b) {
-                        op01.c:0001:                    f:  int f(int a, int b) {
-                        op01.c:0002:                    f:  return a+b;
+                       aop01.c:0005:                 main:  int main() {
+                       aop01.c:0008:                 main:  int* xp = &x;
+                       aop01.c:0010:                 main:  return f((int) xp, (int) yp);
+                       aop01.c:0001:                    f:  int f(int a, int b) {
+                       aop01.c:0001:                    f:  int f(int a, int b) {
+                       aop01.c:0002:                    f:  return a+b;
 ================================================================================

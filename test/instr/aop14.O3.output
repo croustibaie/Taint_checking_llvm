@@ -1,1 +1,4 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+                       aop14.c:0005:                 main:  int main() {
+                       aop14.c:0002:                 main:  return a/b;
+================================================================================
