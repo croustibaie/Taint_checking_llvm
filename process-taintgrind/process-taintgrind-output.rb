@@ -7,6 +7,7 @@ require_relative "util.rb"
 
 $idxwidth = 8
 $verbose = false
+$color = true
 
 class TaintGrindOp
   @@debug = Debug.new
@@ -117,7 +118,7 @@ class TaintGrindOp
   def to_s
     line = self.get_src_line
     line = "[file not found]" if line.nil?
-    line = line.red if self.is_sink
+    line = line.red if self.is_sink and $color
 
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
@@ -230,6 +231,7 @@ Flags:
  -taintgrind-trace    Show the taintgrind trace for the identified sinks.
  -mark-trace          For each trace print the whole taintgrind log but mark
                       the trace using color
+ -no-color            Do not use terminal colors
 HELP
 
 taintgrind_trace = false
@@ -264,6 +266,9 @@ loop do
     ARGV.shift
   when "-mark-trace"
     mark_trace = true
+    ARGV.shift
+  when "-no-color"
+    $color = false
     ARGV.shift
   when /^-/
     puts "Unrecognized argument #{ARGV[0]}"
@@ -329,16 +334,29 @@ sinks.each do |sink|
       if mark_trace
         output = input_lines.clone
         trace.each do |n|
-          output[n.idx] = n.is_sink ? output[n.idx].red : output[n.idx].blue
+          output[n.idx] = [n.is_sink, output[n.idx]]
         end
         output.each_with_index do |l,idx|
-          puts "%8d   %s" % [idx, l]
+          print "%8d   " % idx
+
+          if l.is_a? Array
+            if $color
+              puts(l[0] ? l[1].red : l[1].blue)
+            else
+              print(l[0] ? "[S]  " : "[T]  ")
+              puts l[1]
+            end
+          else
+            print "     " if not $color
+            puts l
+          end
         end
       else
         trace.map! { |n| n.line } if taintgrind_trace
         puts trace
       end
     end
-    puts ("="*80).yellow
+    sep = "=" * 80
+    puts($color ? sep.yellow : sep)
   end
 end
