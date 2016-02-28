@@ -3,7 +3,8 @@ implement missing detection functionality
  - logic operators && || !  CHECK
  - bitwise ops & | ^ ~ << >>
  - eq operators < <= == != > >=
- - taint ending up in syscall or conditions
+ - taint ending up in syscall
+ - taint ending up in conditions
  - null ptr comparisons
 
 scale
