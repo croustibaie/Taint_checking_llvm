@@ -1,0 +1,16 @@
+implement missing detection functionality
+ - operators + - * / % ++ --   CHECK
+ - logic operators && || !  CHECK
+ - bitwise ops & | ^ ~ << >>
+ - eq operators < <= == != > >=
+ - taint ending up in syscall or conditions
+ - null ptr comparisons
+
+scale
+ - test with multiple files as input
+ - test with shared libs
+
+evaluate
+ - tinyhttpd
+ - nginx
+ - apache
