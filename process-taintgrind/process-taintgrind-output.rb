@@ -8,6 +8,7 @@ require_relative "util.rb"
 $idxwidth = 8
 $verbose = false
 $color = true
+$sink_lines = []
 
 class TaintGrindOp
   @@debug = Debug.new
@@ -53,18 +54,22 @@ class TaintGrindOp
     end
 
     # is this a sink?
-    @is_sink = ((cmd =~ / = Add/ and @from.length > 1) or
-                (cmd =~ / = Sub/ and @from.length > 1) or
-                (cmd =~ / = Mul/) or
-                (cmd =~ / = Div/) or
-                (cmd =~ / = Mod/) or
-                (cmd =~ / = Shl/))
-
-    if !@is_sink
-      # special cases
-      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
-        @is_sink = $1 == @from[0]
+    if $sink_lines.empty?
+      @is_sink = ((cmd =~ / = Add/ and @from.length > 1) or
+                  (cmd =~ / = Sub/ and @from.length > 1) or
+                  (cmd =~ / = Mul/) or
+                  (cmd =~ / = Div/) or
+                  (cmd =~ / = Mod/) or
+                  (cmd =~ / = Shl/))
+      
+      if !@is_sink
+        # special cases
+        if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
+          @is_sink = $1 == @from[0]
+        end
       end
+    else
+      @is_sink = $sink_lines.include?(idx+1)
     end
     
     @preds = []
@@ -240,6 +245,8 @@ Flags:
  -mark-trace          For each trace print the whole taintgrind log but mark
                       the trace using color
  -no-color            Do not use terminal colors
+ -mark-sink [lineno.] Mark the line as sink; this disables automatic sink
+                      detection
 HELP
 
 taintgrind_trace = false
@@ -278,6 +285,9 @@ loop do
   when "-no-color"
     $color = false
     ARGV.shift
+  when "-mark-sink"
+    ARGV.shift
+    $sink_lines.push ARGV.shift.to_i
   when /^-/
     puts "Unrecognized argument #{ARGV[0]}"
     exit
@@ -345,7 +355,7 @@ sinks.each do |sink|
           output[n.idx] = [n.is_sink, output[n.idx]]
         end
         output.each_with_index do |l,idx|
-          print "%8d   " % idx
+          print "%8d   " % (idx+1)
 
           if l.is_a? Array
             if $color
