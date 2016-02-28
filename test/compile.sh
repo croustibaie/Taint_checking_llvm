@@ -8,9 +8,9 @@ if [ -z "$1" ]; then
 fi
 
 if [ -z "$2" ]; then
-    OUTFILE=`basename $1 .c`.bc
+    OUTFILE=`basename $1 .c`.ll
 else
     OUTFILE="$2"
 fi
 
-exec clang -O1 -emit-llvm -I$VALGRIND_DIR/include/valgrind $1 -c -o $OUTFILE
+exec clang -O0 -g -emit-llvm -I$VALGRIND_DIR/include/valgrind $1 -S -o $OUTFILE
