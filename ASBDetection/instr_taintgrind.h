@@ -74,7 +74,7 @@ namespace TaintAnalysis {
             builder.CreateStore(taintCellI64, arrayidx1, true); // TODO align 8?
 
             Value* arrayidx2 = builder.CreateConstInBoundsGEP2_64(zzq_args, 0, 2, "arrayidx2");
-            builder.CreateStore(ConstantInt::get(i64Ty, 4), arrayidx2, true); // TODO align 16?
+            builder.CreateStore(ConstantInt::get(i64Ty, taintSource->getType()->getPrimitiveSizeInBits()), arrayidx2, true); // TODO align 16?
 
             Value* arrayidx3 = builder.CreateConstInBoundsGEP2_64(zzq_args, 0, 3, "arrayidx3");
             //builder.CreateStore(builder.CreatePtrToInt(taintLabel, i64Ty), arrayidx3, true); // TODO align 8?
