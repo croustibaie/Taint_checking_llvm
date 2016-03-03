@@ -3,6 +3,9 @@ implement missing detection functionality
  - logic operators && || !  CHECK
  - bitwise ops & | ^ ~ << >>
  - eq operators < <= == != > >=
+   +++ YEEAAHH.. there's that thing that a == might be translated to a x86 sub or to a x86 cmp
+       Both behave identically except that one shows up as Cmp in the taintgrind log and the other
+       as evil Sub.. we somehow have to work around this
  - taint ending up in syscall
  - taint ending up in conditions
  - null ptr comparisons
