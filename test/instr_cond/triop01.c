@@ -1,5 +1,5 @@
 int f(int b) {
-    return b ? 0 : 1;
+    return ((b+b) == (b+5)) ? 0 : 4;
 }
 
 int main() {
