@@ -60,7 +60,8 @@ class TaintGrindOp
                   (cmd =~ / = Mul/) or
                   (cmd =~ / = Div/) or
                   (cmd =~ / = Mod/) or
-                  (cmd =~ / = Shl/))
+                  (cmd =~ / = Shl/) or
+                  (@func == "(below main)"))
       
       if !@is_sink
         # special cases
