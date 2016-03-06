@@ -1,4 +1,4 @@
-DIRS := static-taint instr instr_aop instr_lop instr_cop
+DIRS := static-taint instr instr_aop instr_lop instr_cop instr_cond
 
 .PHONY: $(DIRS) clean
 
@@ -18,6 +18,9 @@ default: all
 
 %.instr_cop:
 	$(MAKE) -C instr_cop $*
+
+%.instr_cond:
+	$(MAKE) -C instr_cond $*
 
 all: $(addprefix all.,$(DIRS))
 clean: $(addprefix clean.,$(DIRS))
