@@ -188,12 +188,13 @@ class TaintGrindOp
       else
         puts "adding preds #{op.preds.map{|p|p.idx+1}.inspect}" if $verbose
         successor = (op.successor.nil? or not block_given? or yield op) ? op : op.successor
-        op.preds.each do |p|
+        op.preds.sort_by{ |p| p.nil? ? 0 : (p.is_red ? 2 : 1) }.each do |p| # puts the red ones first
           if not p.nil? and p.successor.nil? # if this one already has a successor the other one will be shorter
             p.successor = successor  # link from where we found this one
             stack.push p
           end
         end
+        puts
       end
     end
     
