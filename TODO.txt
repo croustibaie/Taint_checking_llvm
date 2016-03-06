@@ -8,7 +8,8 @@ implement missing detection functionality
        as evil Sub.. we somehow have to work around this
  - taint ending up in syscall
  - taint ending up in conditions
- - null ptr comparisons
+ - null ptr comparisons (there is already one test in instr_cop)
+ - malloc, etc.
 
 scale
  - test with multiple files as input
