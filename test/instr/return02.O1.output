@@ -1,5 +1,1 @@
->>>> The origin of the taint should be just here <<<<
-                    return02.c:0001:                 main:  int main() {
-                    return02.c:0003:                 main:  return (int) &i;
-                            ??:0000:         (below main):  [file not found]
-================================================================================
+
