@@ -172,18 +172,14 @@ def get_tests_from_dir(directory):
 def invoke_test(test):
     return test.invoke()
 
+def init_worker():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    
 def executeTests(tests):
     """Invoke this function with a list of test objects to run the tests. """
-    pool = multiprocessing.Pool(processes=4)
+    pool = multiprocessing.Pool(4, init_worker)
     it = pool.imap(invoke_test, tests)
 
-    # allow for Ctrl+C
-    def signal_handler(signal, frame):
-        print('Exiting...')
-        pool.terminate()
-        sys.exit(0)
-    signal.signal(signal.SIGINT, signal_handler)
-    
     res = {}
     for i in range(len(tests)):
         print ("["+str(i+1)+"/"+str(len(tests))+"] " + tests[i].getName())
