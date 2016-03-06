@@ -21,9 +21,8 @@ done
 
 PTO_ARGS=""
 
-for ARG in "$ARGS"; do
-    ARG_STRIPPED=`echo $ARG`
-    if [ "$ARG_STRIPPED" = "-dt-no-cleanup" ]; then
+for ARG in $ARGS; do
+    if [ "$ARG" = "-dt-no-cleanup" ]; then
         CLEANUP=0
     else
         PTO_ARGS="$PTO_ARGS $ARG"

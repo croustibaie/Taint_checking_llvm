@@ -1,4 +1,5 @@
 #!/usr/bin/env ruby
+# coding: utf-8
 
 require "set"
 require "colored.rb"
@@ -8,10 +9,14 @@ require_relative "util.rb"
 $idxwidth = 8
 $verbose = false
 $color = true
-$sink_lines = []
 
 class TaintGrindOp
   @@debug = Debug.new
+  @@sink_lines = []
+
+  def self.sink_lines()
+    return @@sink_lines
+  end
   
   def self.is_taintgrindop_line?(line)
     return line.split(" | ").length == 5
@@ -53,27 +58,26 @@ class TaintGrindOp
       end
     end
 
-    # is this a sink?
-    if $sink_lines.empty?
-      @is_sink = ((cmd =~ / = Add/ and @from.length > 1) or
-                  (cmd =~ / = Sub/ and @from.length > 1) or
-                  (cmd =~ / = Mul/) or
-                  (cmd =~ / = Div/) or
-                  (cmd =~ / = Mod/) or
-                  (cmd =~ / = Shl/))
-      
-      if !@is_sink
-        # special cases
-        if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
-          @is_sink = $1 == @from[0]
-        end
-      end
-    else
-      @is_sink = $sink_lines.include?(idx+1)
-    end
-    
     @preds = []
     @successor = nil
+      
+    # is this an instruction that automatically leads to red taint
+    @is_red = ((cmd =~ / = Add/ and @from.length > 1) or
+               (cmd =~ / = Sub/ and @from.length > 1) or
+               (cmd =~ / = Mul/) or
+               (cmd =~ / = Div/) or
+               (cmd =~ / = Mod/) or
+               (cmd =~ / = Shl/))
+    
+    if !@is_red
+      # special cases
+      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
+        @is_red = $1 == @from[0]
+      end
+    end
+
+    # initial calculation if this is a sink
+    calc_is_sink()
   end
 
   def set_var(var)
@@ -82,6 +86,24 @@ class TaintGrindOp
     elsif @var != var
       raise RuntimeError.new("two different var values: #{@var} != #{var}")
     end
+  end
+
+  def calc_is_sink()
+    return if @is_sink
+    
+    if @@sink_lines.empty?
+      @is_sink = @is_red and @preds.find{|p|p.is_red}.nil?
+    else
+      @is_sink = @@sink_lines.include?(idx+1)
+    end
+  end
+  
+  def add_pred(pred)
+    @preds.push pred
+
+    @is_red = @is_red || pred.is_red
+    
+    calc_is_sink()
   end
 
   def get_lineno
@@ -214,7 +236,7 @@ class TaintGrindOp
     return trace
   end
   
-  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx
+  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx, :is_red
   attr_accessor :successor
 end
 
@@ -287,7 +309,7 @@ loop do
     ARGV.shift
   when "-mark-sink"
     ARGV.shift
-    $sink_lines.push ARGV.shift.to_i
+    TaintGrindOp.sink_lines.push ARGV.shift.to_i
   when /^-/
     puts "Unrecognized argument #{ARGV[0]}"
     exit
@@ -315,11 +337,11 @@ input_lines.each_with_index do |line, idx|
   # link to predecessors
   tgo.from.each do |fromvar|
     if taintgrind_ops.has_key?(fromvar)
-      tgo.preds.push(taintgrind_ops[fromvar])
+      tgo.add_pred taintgrind_ops[fromvar]
     end
   end
   if tgo.is_use? and taintgrind_ops.has_key? tgo.var
-    tgo.preds.push taintgrind_ops[tgo.var]
+    tgo.add_pred taintgrind_ops[tgo.var]
   end
   
   if tgo.is_def?
@@ -352,17 +374,17 @@ sinks.each do |sink|
       if mark_trace
         output = input_lines.clone
         trace.each do |n|
-          output[n.idx] = [n.is_sink, output[n.idx]]
+          output[n.idx] = [n.is_sink, n.is_red, output[n.idx]]
         end
         output.each_with_index do |l,idx|
           print "%8d   " % (idx+1)
 
           if l.is_a? Array
             if $color
-              puts(l[0] ? l[1].red : l[1].blue)
+              puts(l[0] ? l[2].magenta : (l[1] ? l[2].red : l[2].blue))
             else
-              print(l[0] ? "[S]  " : "[T]  ")
-              puts l[1]
+              print(l[0] ? "[S]  " : (l[1] ? "[R]  " : "[B]  "))
+              puts l[2]
             end
           else
             print "     " if not $color
