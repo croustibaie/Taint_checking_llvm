@@ -22,7 +22,7 @@ class TaintGrindOp
     return line.split(" | ").length == 5
   end
   
-  def initialize(line, idx)
+  def initialize(line, idx, graph)
     @idx = idx
     @line = line
 
@@ -39,31 +39,33 @@ class TaintGrindOp
       @lineno = nil
     end
 
-    preds = tnt_flow.split("; ")
-    @from = []
+    # parse taint information and flow and set predecessors
+    @preds = []
     @var = nil
     
-    preds.each do |pred|
+    tnt_flow.split("; ").each do |pred|
       if pred =~ /^(.+?) <- (.+?)$/ # e.g. t54_1741 <- t42_1773, t29_4179
         self.set_var($1)
-        @from += $2.split(", ")
+        @preds += $2.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       elsif pred =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
-#        self.set_var($1)
-#        @from += $2.split(", ")
-      #@is_sink = true
+        # we MUST not dereference a red value, however this does not count as taintflow
+        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red }.nil?)
       elsif pred =~ /^(.+?) <-\*- (.+?)$/ # e.g. t78_744 <-*- t72_268
-        # do nothing? like above
+        # what's the difference to above?
+        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red }.nil?)
       else  # e.g. t54_1741
-        @var = pred
+        self.set_var(pred)
       end
     end
 
-    @preds = []
-    @successor = nil
-      
+    if self.is_use? and graph.has_key? @var
+      @preds.push graph[@var]
+    end
+
     # is this an instruction that automatically leads to red taint
-    @is_red = ((cmd =~ / = Add/ and @from.length > 1) or
-               (cmd =~ / = Sub/ and @from.length > 1) or
+    @is_red = (not @preds.find{|p|not p.nil? and p.is_red}.nil? or
+               (cmd =~ / = Add/ and @preds.length > 1) or
+               (cmd =~ / = Sub/ and @preds.length > 1) or
                (cmd =~ / = Mul/) or
                (cmd =~ / = Div/) or
                (cmd =~ / = Mod/) or
@@ -71,13 +73,26 @@ class TaintGrindOp
     
     if !@is_red
       # special cases
-      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @from.length == 1
-        @is_red = $1 == @from[0]
+      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @preds.length == 1
+        @is_red = $1 == @preds[0]
       end
     end
 
-    # initial calculation if this is a sink
-    calc_is_sink()
+    # is this a sink?
+    if @@sink_lines.empty?
+      if not @is_sink
+        if cmd =~ / = Cmp/
+          puts @line
+          puts @is_red
+        end
+        # cmp operations untaint the value -> we have to mark them as sink
+        @is_sink = (@is_red and (cmd =~ / = Cmp/))
+      end
+    else
+      @is_sink = @@sink_lines.include?(idx+1)
+    end
+    
+    @successor = nil
   end
 
   def set_var(var)
@@ -86,24 +101,6 @@ class TaintGrindOp
     elsif @var != var
       raise RuntimeError.new("two different var values: #{@var} != #{var}")
     end
-  end
-
-  def calc_is_sink()
-    return if @is_sink
-    
-    if @@sink_lines.empty?
-      @is_sink = @is_red and @preds.find{|p|p.is_red}.nil?
-    else
-      @is_sink = @@sink_lines.include?(idx+1)
-    end
-  end
-  
-  def add_pred(pred)
-    @preds.push pred
-
-    @is_red = @is_red || pred.is_red
-    
-    calc_is_sink()
   end
 
   def get_lineno
@@ -127,7 +124,7 @@ class TaintGrindOp
   end
   
   def is_source?
-    return @preds.empty?
+    return @preds.find{|p|not p.nil?}.nil?
   end
   
   def is_tmp_var?
@@ -135,7 +132,7 @@ class TaintGrindOp
   end
   
   def is_use?
-    return @from.empty?
+    return @preds.empty?
   end
   
   def is_def?
@@ -169,19 +166,19 @@ class TaintGrindOp
     visited = Set.new
     
     while not stack.empty?
-      print "%20s  " % stack.map{|n|n.idx}.inspect if $verbose
+      print "%20s  " % stack.map{|n|n.idx+1}.inspect if $verbose
       op = stack.pop
       
       if visited.include? op
-        puts "already visited #{op.idx}, skipping" if $verbose
+        puts "already visited #{op.idx+1}, skipping" if $verbose
         next
       end
       visited.add op
 
       if $verbose
         w = 3
-        print "detecting %#{$idxwidth}d" % op.idx
-        print(op.successor.nil? ? " "*(6+$idxwidth) : (" from %#{$idxwidth}d" % op.successor.idx))
+        print "detecting %#{$idxwidth}d" % (op.idx+1)
+        print(op.successor.nil? ? " "*(6+$idxwidth) : (" from %#{$idxwidth}d" % (op.successor.idx+1)))
         print "  --  "
       end
       
@@ -189,10 +186,10 @@ class TaintGrindOp
         puts "found source" if $verbose
         sources.push((not block_given? or yield op) ? op : op.successor)
       else
-        puts "adding preds #{op.preds.map{|p|p.idx}.inspect}" if $verbose
+        puts "adding preds #{op.preds.map{|p|p.idx+1}.inspect}" if $verbose
         successor = (op.successor.nil? or not block_given? or yield op) ? op : op.successor
         op.preds.each do |p|
-          if p.successor.nil? # if this one already has a successor the other one will be shorter
+          if not p.nil? and p.successor.nil? # if this one already has a successor the other one will be shorter
             p.successor = successor  # link from where we found this one
             stack.push p
           end
@@ -252,7 +249,7 @@ conditions. Tainted values are values derived from casts from pointers to
 integrals.
 
 Flags:
- -v, --verbose        Verbose mode
+ -v, -verbose         Verbose mode
  -libs=yes|no         In the traces, show lines that are located in 3rd-party-
                       libraries. Specifically, a line is considered to be in a
                       library, if the source file cannot be found below the
@@ -283,7 +280,7 @@ loop do
   when "-h", "--help", "-help"
     puts HELPTEXT
     exit
-  when "-v", "--verbose"
+  when "-v", "-verbose", "--verbose"
     $verbose = true
     ARGV.shift
   when /^-libs=(yes|no)$/
@@ -332,22 +329,10 @@ input_lines.each_with_index do |line, idx|
     next
   end
   
-  tgo = TaintGrindOp.new(line, idx)
-  
-  # link to predecessors
-  tgo.from.each do |fromvar|
-    if taintgrind_ops.has_key?(fromvar)
-      tgo.add_pred taintgrind_ops[fromvar]
-    end
-  end
-  if tgo.is_use? and taintgrind_ops.has_key? tgo.var
-    tgo.add_pred taintgrind_ops[tgo.var]
-  end
-  
+  tgo = TaintGrindOp.new(line, idx, taintgrind_ops)
+
   if tgo.is_def?
-    if taintgrind_ops.has_key?(tgo.var)
-      puts "ERROR: Duplicated definition"
-    end
+    raise RuntimeError.new("ERROR: Duplicated definition") if taintgrind_ops.has_key?(tgo.var)
     taintgrind_ops[tgo.var] = tgo
   end
   
