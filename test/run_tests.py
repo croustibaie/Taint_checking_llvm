@@ -14,7 +14,7 @@ Command line options:
 """
 
 import infrastructure.tests
-from infrastructure.timed_process import CompileProcess
+from infrastructure.timed_process import TimedProcess
 import os, sys, getopt, subprocess
 
 def invoke(directory, valgrind):
@@ -36,7 +36,7 @@ def main():
     
     # get cmd file
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "he:t:L", ["help", "executable", "compiler-timeout", "valgrind"])
+        opts, args = getopt.getopt(sys.argv[1:], "he:t:L", ["help", "executable", "timeout", "valgrind"])
     except getopt.error as msg:
         print(msg)
         sys.exit(2)
@@ -46,8 +46,8 @@ def main():
         if o in ("-h", "--help"):
             print(__doc__)
             sys.exit(0)
-        if o in ("-t", "--compiler-timeout"):
-            CompileProcess.timeout = float(a)
+        if o in ("-t", "--timeout"):
+            TimedProcess.timeout = float(a)
         if o in ("-L", "--valgrind"):
             valgrind = True
 

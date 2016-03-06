@@ -7,7 +7,10 @@ Created on 1 Jul 2014
 import subprocess, threading, errno
 
 class TimedProcess(object):
-    def __init__(self, cmd, cwd, timeout):
+    DEFAULT_TIMEOUT = 1.0
+    timeout = DEFAULT_TIMEOUT
+    
+    def __init__(self, cmd, cwd, timeout=timeout):
         self.cmd = cmd
         self.cwd = cwd
         self.timeout = timeout
@@ -48,17 +51,3 @@ class TimedProcess(object):
     def crash(self):
         assert self.returncode is not None
         return self.returncode < 0
-
-class CompileProcess(TimedProcess):
-    DEFAULT_TIMEOUT = 1.0
-    timeout = DEFAULT_TIMEOUT
-    
-    def __init__(self, cmd, cwd, timeout=timeout):
-        super(CompileProcess, self).__init__(cmd, cwd, timeout)
-
-class RuntimeProcess(TimedProcess):
-    DEFAULT_TIMEOUT = 2.0
-    timeout = DEFAULT_TIMEOUT
-    
-    def __init__(self, cmd, cwd, timeout=timeout):
-        super(RuntimeProcess, self).__init__(cmd, cwd, timeout)

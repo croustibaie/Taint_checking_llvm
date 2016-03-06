@@ -4,9 +4,23 @@ Created on 8 Dec 2013
 @author: Alexander Kampmann, David Poetzsch-Heffter
 '''
 
-import sys, os, difflib, shutil, imp, tempfile
-from timed_process import CompileProcess, RuntimeProcess
+import sys, os, difflib, shutil, imp, tempfile, multiprocessing, signal
+from timed_process import TimedProcess
 from valgrindxml import ValgrindXML
+
+class TestResult(object):
+    def __init__(self, success, msg=""):
+        self.success = success
+        self.msg = msg
+
+    @staticmethod
+    def success(msg=""):
+        return TestResult(True, msg)
+
+    @staticmethod
+    def fail(msg=""):
+        return TestResult(False, msg)
+    
 
 class Test(object):
     """Superclass for all the tests."""
@@ -33,15 +47,10 @@ class Test(object):
     def execCmd(self):
         return [os.path.abspath(self.exe)] + self.options + [self.srcfile]
     
-    def fail(self, msg=""):
-        print("[FAIL] " + " ".join(self.execCmd()))
-        print(msg)
-        return False
-
     def invoke(self):
-        timeout = CompileProcess.timeout * self.timeoutFactor
-            
-        p = CompileProcess(self.execCmd(), self.basedir, timeout)
+        timeout = TimedProcess.timeout * self.timeoutFactor
+
+        p = TimedProcess(self.execCmd(), self.basedir, timeout)
         p.execute()
         return self.check(p)
         
@@ -49,12 +58,12 @@ class Test(object):
         cmd = os.path.basename(proc.cmd[0])
         
         if proc.killed:
-            return self.fail("  Process '%s' timed out.\n\n" % cmd)
+            return TestResult.fail("  Process '%s' timed out.\n\n" % cmd)
                     
         if proc.crash():
-            return self.fail("  '%s' crashed. Return code was: %d\n\n" % (cmd, proc.returncode))
+            return TestResult.fail("  '%s' crashed. Return code was: %d\n\n" % (cmd, proc.returncode))
                     
-        return True
+        return TestResult.success()
 
 class ValgrindTest(Test):
     """Auto-check for memory leaks with valgrind"""
@@ -70,34 +79,35 @@ class ValgrindTest(Test):
             [os.path.abspath(self.exe)] + self.options + [self.srcfile]
         
     def check(self, p):
-        if not super(ValgrindTest, self).check(p):
-            return False
-        
+        super_result = super(ValgrindTest, self).check(p)
+        if not super_result.success:
+            return super_result
+                    
         try:
             vgout = ValgrindXML(ValgrindTest.VALGRIND_XML_FILE)
 
             success = len(vgout.leaks) == 0
 
             if not success:
-                return self.fail("\n" + vgout)
+                return TestResult.fail("\n" + vgout)
             else:
-                return True
+                return TestResult.success()
         except Exception as e:
-            print "Parsing valgrind output FAILED: %s" % e
-            return False
-
+            return TestResult.fail("Parsing valgrind output FAILED: %s" % e)
+            
 def diff_output(output, expected):
     olines = output.splitlines(1)
     elines = expected.splitlines(1)
     
     diff = difflib.Differ()
     fails = 0
+    msg = []
     for cp in diff.compare(elines, olines):
         if cp.startswith('-') or cp.startswith('+'):
-            print(cp.rstrip())
+            msg.append(cp.rstrip())
             fails=fails+1
-    
-    return True if fails == 0 else False
+
+    return TestResult(fails == 0, "\n".join(msg))
 
 class CompilerOutputTest(Test):
     """Superclass tests which work on a single file and compare the output."""
@@ -113,14 +123,15 @@ class CompilerOutputTest(Test):
         self.result = res
     
     def check(self, p):
-        if not super(CompilerOutputTest, self).check(p):
-            return False
+        super_result = super(CompilerOutputTest, self).check(p)
+        if not super_result.success:
+            return super_result
         
         if p.success() != self.positive:
-            return self.fail("Output: %s\n\n" % p.output)
+            return TestResult.fail("Output: %s\n\n" % p.output)
                     
         if self.result is None:
-            return True
+            return TestResult.success()
     
         with open(os.path.join(self.basedir, self.result), 'r') as f:
             return diff_output(p.output.strip(), f.read().strip())
@@ -158,15 +169,30 @@ def get_tests_from_dir(directory):
         tests = make_tests(directory)
     return tests
 
+def invoke_test(test):
+    return test.invoke()
+
 def executeTests(tests):
     """Invoke this function with a list of test objects to run the tests. """
+    pool = multiprocessing.Pool(processes=4)
+    it = pool.imap(invoke_test, tests)
+
+    # allow for Ctrl+C
+    def signal_handler(signal, frame):
+        print('Exiting...')
+        pool.terminate()
+        sys.exit(0)
+    signal.signal(signal.SIGINT, signal_handler)
     
     res = {}
-    s   = True
     for i in range(len(tests)):
         print ("["+str(i+1)+"/"+str(len(tests))+"] " + tests[i].getName())
-        res[tests[i]] = s = tests[i].invoke()
+        r = res[tests[i]] = it.next()
 
+        if not r.success:
+            print("[FAIL] " + " ".join(tests[i].execCmd()))
+            print(r.msg)
+    
     print("\n* Test summary\n")
     failOpt = 0
     failReq = 0
@@ -177,12 +203,12 @@ def executeTests(tests):
         opt_tests.append(t) if t.isOptional() else req_tests.append(t)
     
     for t in req_tests:
-        if not res[t]:
+        if not res[t].success:
             print("- REQUIRED test failed: "+t.getName())
             failReq += 1
             
     for t in opt_tests:
-        if not res[t]:
+        if not res[t].success:
             print("- OPTIONAL test failed: "+t.getName())
             failOpt += 1
     
