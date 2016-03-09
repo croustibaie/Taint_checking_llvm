@@ -129,7 +129,22 @@ namespace TaintAnalysis {
         }
 
         void visitICmpInst(ICmpInst &i) {
-            //taintSources.push_back(std::make_pair(&i, false));
+            //
+            for (auto uit = i.op_begin(); uit != i.op_end(); ++uit) {
+                Value* op = *uit;
+                if (isa<ConstantPointerNull>(op)) {
+                    // untaint
+                    taintSources.push_back(std::make_pair(&i, false));
+                    break;
+                } else if (isa<ConstantInt>(op)) {
+                    ConstantInt* c = dyn_cast<ConstantInt>(op);
+                    if (c->isZero()) {
+                        // untaint
+                        taintSources.push_back(std::make_pair(&i, false));
+                        break;
+                    }
+                }
+            }
         }
         
         void visitInstruction(Instruction &I) {}  // Ignore unhandled instructions

@@ -49,41 +49,45 @@ class TaintGrindOp
         @preds += $2.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       elsif pred =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
         # we MUST not dereference a red value, however this does not count as taintflow
-        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red }.nil?)
+        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red? }.nil?)
       elsif pred =~ /^(.+?) <-\*- (.+?)$/ # e.g. t78_744 <-*- t72_268
         # what's the difference to above?
-        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red }.nil?)
+        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red? }.nil?)
       else  # e.g. t54_1741
         @preds += pred.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       end
     end
 
-    # is this an instruction that automatically leads to red taint
-    @is_red = (not @preds.find{|p|not p.nil? and p.is_red}.nil? or
-               (cmd =~ / = Add/ and @preds.length > 1) or
-               (cmd =~ / = Sub/ and @preds.length > 1) or
-               (cmd =~ / = Mul/) or
-               (cmd =~ / = Div/) or
-               (cmd =~ / = Mod/) or
-               (cmd =~ / = Shl/))
+    self.inherit_taint()
     
-    if !@is_red
-      # special cases
-      if (cmd =~ / = Sub\d\d? .+ (.+)/) and @preds.length == 1
-        @is_red = $1 == @preds[0]
+    if not self.is_red?
+      # is this an instruction that automatically leads to red taint
+      if ((cmd =~ / = Add/ and @preds.length > 1) or
+          (cmd =~ / = Sub\d\d? .+ (.+)/ and (@preds.length > 1 or (@preds.length == 1 and $1 == @preds[0].var))) or
+          (cmd =~ / = Mul/) or
+          (cmd =~ / = Div/) or
+          (cmd =~ / = Mod/) or
+          (cmd =~ / = Shl/))
+        @taint = :red
+      elsif (cmd =~ / = Cmp/ and self.is_blue?) # at least one pred is blue then
+        if @preds.find_all{|p|not p.nil? and p.is_blue?}.length > 1
+          @taint = :green
+        else # we know that at exactly one pred is blue because self.is_blue? above
+          @taint = :red
+        end
       end
     end
-
+    
     # is this a sink?
     if @@sink_lines.empty?
       if not @is_sink
         # cmp operations untaint the value -> we have to mark them as sink
-        #@is_sink = (@is_red and (cmd =~ / = Cmp/))
+        #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
 
         # we can safely allow blue taint to reach a condition because
         # it is either 0 (null) in all variants or a valid pointer (-> true)
-        @is_sink = (((cmd =~ /^IF ([\w_]+) /) and self.is_cond_sink($1)) or
-                    ((cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/) and self.is_cond_sink($1)))
+        @is_sink = (((cmd =~ /^IF ([\w_]+) /) and self.is_cond_sink?($1)) or
+                    ((cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/) and self.is_cond_sink?($1)))
       end
     else
       @is_sink = @@sink_lines.include?(idx+1)
@@ -92,8 +96,22 @@ class TaintGrindOp
     @successor = nil
   end
 
-  def is_cond_sink(cond_var)
-    return (not @preds.find{|p|not p.nil? and p.is_red and p.var == cond_var}.nil?)
+  def inherit_taint()
+    @taint = self.is_source? ? :blue : :green
+
+    @preds.each do |p|
+      next if p.nil?
+      if p.is_red?
+        @taint = :red
+        break # no return from here
+      elsif p.is_blue?
+        @taint = :blue
+      end
+    end
+  end
+
+  def is_cond_sink?(cond_var)
+    return (not @preds.find{|p|not p.nil? and p.is_red? and p.var == cond_var}.nil?)
   end
 
   def set_var(var)
@@ -138,6 +156,14 @@ class TaintGrindOp
   
   def is_def?
     return (not @var.nil?)
+  end
+
+  def is_red?
+    return @taint == :red
+  end
+
+  def is_blue?
+    return @taint == :blue
   end
   
   def get_src_line
@@ -189,7 +215,7 @@ class TaintGrindOp
       else
         puts "adding preds #{op.preds.map{|p|p.idx+1}.inspect}" if $verbose
         successor = (op.successor.nil? or not block_given? or yield op) ? op : op.successor
-        op.preds.sort_by{ |p| p.nil? ? 0 : (p.is_red ? 2 : 1) }.each do |p| # puts the red ones first
+        op.preds.sort_by{ |p| p.nil? ? 0 : (p.is_red? ? 2 : 1) }.each do |p| # puts the red ones first
           if not p.nil? and p.successor.nil? # if this one already has a successor the other one will be shorter
             p.successor = successor  # link from where we found this one
             stack.push p
@@ -235,7 +261,7 @@ class TaintGrindOp
     return trace
   end
   
-  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx, :is_red
+  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx
   attr_accessor :successor
 end
 
@@ -265,12 +291,14 @@ Flags:
  -taintgrind-trace    Show the taintgrind trace for the identified sinks.
  -mark-trace          For each trace print the whole taintgrind log but mark
                       the trace using color
+ -mark-taint          Just mark the taint color of each line
  -no-color            Do not use terminal colors
  -mark-sink [lineno.] Mark the line as sink; this disables automatic sink
                       detection
 HELP
 
 taintgrind_trace = false
+mark_taint = false
 mark_trace = false
 nolib = true
 notmp = true
@@ -302,6 +330,9 @@ loop do
     ARGV.shift
   when "-mark-trace"
     mark_trace = true
+    ARGV.shift
+  when "-mark-taint"
+    mark_taint = true
     ARGV.shift
   when "-no-color"
     $color = false
@@ -341,49 +372,61 @@ input_lines.each_with_index do |line, idx|
   if tgo.is_sink
     sinks.push tgo
   end
+
+  if mark_taint
+    print "%8d   " % (tgo.idx+1)
+    if $color
+      puts(tgo.is_red? ? tgo.line.red : (tgo.is_blue? ? tgo.line.blue : tgo.line.green))
+    else
+      print(tgo.is_red? ? "[R]  " : (tgo.is_blue? ? "[B]  " : "[G]  "))
+      puts tgo.line
+    end
+  end
 end
 
 ###### SHOW TRACES ##########
 
-sinks.each do |sink|
-  unique_traces_proc = TaintGrindOp.new_sources_unique_traces
-  sources = sink.get_sources { |op| (not unique_locs or unique_traces_proc.call(op)) and
-    (not notmp or TaintGrindOp.sources_no_tmp.call(op)) and
-    (not nolib or TaintGrindOp.sources_no_lib.call(op)) }
-  
-  sources.each do |src|
-    puts ">>>> The origin of the taint should be just here <<<<"
-    if src_only
-      puts src
-    else
-      trace = src.get_trace_to_sink
-
-      if mark_trace
-        output = input_lines.clone
-        trace.each do |n|
-          output[n.idx] = [n.is_sink, n.is_red, output[n.idx]]
-        end
-        output.each_with_index do |l,idx|
-          print "%8d   " % (idx+1)
-
-          if l.is_a? Array
-            if $color
-              puts(l[0] ? l[2].magenta : (l[1] ? l[2].red : l[2].blue))
-            else
-              print(l[0] ? "[S]  " : (l[1] ? "[R]  " : "[B]  "))
-              puts l[2]
-            end
-          else
-            print "     " if not $color
-            puts l
-          end
-        end
+if not mark_taint
+  sinks.each do |sink|
+    unique_traces_proc = TaintGrindOp.new_sources_unique_traces
+    sources = sink.get_sources { |op| (not unique_locs or unique_traces_proc.call(op)) and
+                                 (not notmp or TaintGrindOp.sources_no_tmp.call(op)) and
+                                 (not nolib or TaintGrindOp.sources_no_lib.call(op)) }
+    
+    sources.each do |src|
+      puts ">>>> The origin of the taint should be just here <<<<"
+      if src_only
+        puts src
       else
-        trace.map! { |n| n.line } if taintgrind_trace
-        puts trace
+        trace = src.get_trace_to_sink
+        
+        if mark_trace
+          output = input_lines.clone
+          trace.each do |n|
+            output[n.idx] = [n.is_sink, n.is_red?, output[n.idx]]
+          end
+          output.each_with_index do |l,idx|
+            print "%8d   " % (idx+1)
+            
+            if l.is_a? Array
+              if $color
+                puts(l[0] ? l[2].magenta : (l[1] ? l[2].red : l[2].blue))
+              else
+                print(l[0] ? "[S]  " : (l[1] ? "[R]  " : "[B]  "))
+                puts l[2]
+              end
+            else
+              print "     " if not $color
+              puts l
+            end
+          end
+        else
+          trace.map! { |n| n.line } if taintgrind_trace
+          puts trace
+        end
       end
+      sep = "=" * 80
+      puts($color ? sep.yellow : sep)
     end
-    sep = "=" * 80
-    puts($color ? sep.yellow : sep)
   end
 end
