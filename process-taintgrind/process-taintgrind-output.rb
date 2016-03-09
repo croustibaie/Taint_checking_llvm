@@ -54,12 +54,8 @@ class TaintGrindOp
         # what's the difference to above?
         @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red }.nil?)
       else  # e.g. t54_1741
-        self.set_var(pred)
+        @preds += pred.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       end
-    end
-
-    if self.is_use? and graph.has_key? @var
-      @preds.push graph[@var]
     end
 
     # is this an instruction that automatically leads to red taint
@@ -81,18 +77,23 @@ class TaintGrindOp
     # is this a sink?
     if @@sink_lines.empty?
       if not @is_sink
-        if cmd =~ / = Cmp/
-          puts @line
-          puts @is_red
-        end
         # cmp operations untaint the value -> we have to mark them as sink
-        @is_sink = (@is_red and (cmd =~ / = Cmp/))
+        #@is_sink = (@is_red and (cmd =~ / = Cmp/))
+
+        # we can safely allow blue taint to reach a condition because
+        # it is either 0 (null) in all variants or a valid pointer (-> true)
+        @is_sink = (((cmd =~ /^IF ([\w_]+) /) and self.is_cond_sink($1)) or
+                    ((cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/) and self.is_cond_sink($1)))
       end
     else
       @is_sink = @@sink_lines.include?(idx+1)
     end
     
     @successor = nil
+  end
+
+  def is_cond_sink(cond_var)
+    return (not @preds.find{|p|not p.nil? and p.is_red and p.var == cond_var}.nil?)
   end
 
   def set_var(var)
@@ -132,11 +133,11 @@ class TaintGrindOp
   end
   
   def is_use?
-    return @preds.empty?
+    return (not @preds.empty?)
   end
   
   def is_def?
-    return (not self.is_use?)
+    return (not @var.nil?)
   end
   
   def get_src_line
@@ -194,7 +195,7 @@ class TaintGrindOp
             stack.push p
           end
         end
-        puts
+        puts if $verbose
       end
     end
     
@@ -333,7 +334,7 @@ input_lines.each_with_index do |line, idx|
   tgo = TaintGrindOp.new(line, idx, taintgrind_ops)
 
   if tgo.is_def?
-    raise RuntimeError.new("ERROR: Duplicated definition") if taintgrind_ops.has_key?(tgo.var)
+    raise RuntimeError.new("ERROR: Duplicated definition in lines #{taintgrind_ops[tgo.var].idx+1} and #{idx+1}") if taintgrind_ops.has_key?(tgo.var)
     taintgrind_ops[tgo.var] = tgo
   end
   

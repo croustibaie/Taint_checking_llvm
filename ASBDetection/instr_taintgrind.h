@@ -120,14 +120,6 @@ namespace TaintAnalysis {
             logState(20, endBlock->getParent());
         }
  
-        void taintValue(Instruction* value) {
-            instrumentValue(value, true);
-        }
-
-        void untaintValue(Instruction* value) {
-            instrumentValue(value, false);
-        }
-        
     public:
         InstrTaintgrindVisitor() {}
         InstrTaintgrindVisitor(int logLevel) : logLevel(logLevel) {}
@@ -137,7 +129,7 @@ namespace TaintAnalysis {
         }
 
         void visitICmpInst(ICmpInst &i) {
-            taintSources.push_back(std::make_pair(&i, false));
+            //taintSources.push_back(std::make_pair(&i, false));
         }
         
         void visitInstruction(Instruction &I) {}  // Ignore unhandled instructions
