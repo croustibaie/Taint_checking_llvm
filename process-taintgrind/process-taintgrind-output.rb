@@ -42,6 +42,7 @@ class TaintGrindOp
     # parse taint information and flow and set predecessors
     @preds = []
     @var = nil
+    @sink_reasons = []
     
     tnt_flow.split("; ").each do |pred|
       if pred =~ /^(.+?) <- (.+?)$/ # e.g. t54_1741 <- t42_1773, t29_4179
@@ -49,10 +50,10 @@ class TaintGrindOp
         @preds += $2.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       elsif pred =~ /^(.+?) <\*- (.+?)$/ # e.g. t78_744 <*- t72_268
         # we MUST not dereference a red value, however this does not count as taintflow
-        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red? }.nil?)
+        @sink_reasons += $2.split(", ").find_all {|f| graph.has_key?(f) and graph[f].is_red? }.map { |f| graph[f] }
       elsif pred =~ /^(.+?) <-\*- (.+?)$/ # e.g. t78_744 <-*- t72_268
         # what's the difference to above?
-        @is_sink = (not $2.split(", ").find{|f| graph.has_key?(f) and graph[f].is_red? }.nil?)
+        @sink_reasons += $2.split(", ").find_all {|f| graph.has_key?(f) and graph[f].is_red? }.map { |f| graph[f] }
       else  # e.g. t54_1741
         @preds += pred.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
       end
@@ -79,21 +80,22 @@ class TaintGrindOp
     end
     
     # is this a sink?
-    if @@sink_lines.empty?
-      if not @is_sink
-        # cmp operations untaint the value -> we have to mark them as sink
-        #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
-
-        # we can safely allow blue taint to reach a condition because
-        # it is either 0 (null) in all variants or a valid pointer (-> true)
-        @is_sink = (((cmd =~ /^IF ([\w_]+) /) and self.is_cond_sink?($1)) or
-                    ((cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/) and self.is_cond_sink?($1)))
-      end
-    else
-      @is_sink = @@sink_lines.include?(idx+1)
-    end
+    # cmp operations untaint the value -> we have to mark them as sink
+    #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
     
-    @successor = nil
+    if (cmd =~ /^IF ([\w_]+) /) or (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/)
+      # we can safely allow blue taint to reach a condition because
+      # it is either 0 (null) in all variants or a valid pointer (-> true)
+      @sink_reasons += @preds.find_all { |p| not p.nil? and p.is_red? and p.var == $1 }
+    end
+
+    if not @@sink_lines.empty?
+      if @@sink_lines.include?(idx+1)
+        @sink_reasons += @preds if @sink_reasons.empty? # definitly add some reasons
+      else
+        @sink_reasons = [] # only marked sinks
+      end
+    end
   end
 
   def inherit_taint()
@@ -108,10 +110,6 @@ class TaintGrindOp
         @taint = :blue
       end
     end
-  end
-
-  def is_cond_sink?(cond_var)
-    return (not @preds.find{|p|not p.nil? and p.is_red? and p.var == cond_var}.nil?)
   end
 
   def set_var(var)
@@ -143,7 +141,11 @@ class TaintGrindOp
   end
   
   def is_source?
-    return @preds.find{|p|not p.nil?}.nil?
+    return ((@preds+@sink_reasons).find{|p|not p.nil?}.nil?)
+  end
+
+  def is_sink?
+    return (not @sink_reasons.empty?)
   end
   
   def is_tmp_var?
@@ -177,7 +179,7 @@ class TaintGrindOp
   def to_s
     line = self.get_src_line
     line = "[file not found]" if line.nil?
-    line = line.red if self.is_sink and $color
+    line = line.red if self.is_sink? and $color
 
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
@@ -185,50 +187,73 @@ class TaintGrindOp
     return "%30s:%.4d: %20s:  %s" % [file.to_s, self.get_lineno, @func, line]
   end
   
-  def get_sources
+  def get_traces
     # we can't use recursion here because the graph can be VERY huge and the
     # stack depth is just not enough for that
     sources = []
-    stack = [self]
-    visited = Set.new
-    
-    while not stack.empty?
-      print "%20s  " % stack.map{|n|n.idx+1}.inspect if $verbose
-      op = stack.pop
-      
-      if visited.include? op
-        puts "already visited #{op.idx+1}, skipping" if $verbose
-        next
-      end
-      visited.add op
 
+    # all nodes that still need to be processed
+    queue = [self]
+
+    # a map from detected nodes to their successors
+    detected = { self => nil }
+    
+    while not queue.empty?
+      print "%20s  " % queue.map{|n|n.idx+1}.inspect if $verbose
+      op = queue.shift
+
+      
       if $verbose
         w = 3
         print "detecting %#{$idxwidth}d" % (op.idx+1)
-        print(op.successor.nil? ? " "*(6+$idxwidth) : (" from %#{$idxwidth}d" % (op.successor.idx+1)))
+        successor = detected[op]
+        print(successor.nil? ? " "*(6+$idxwidth) : (" from %#{$idxwidth}d" % (successor.idx+1)))
         print "  --  "
       end
       
       if op.is_source?
         puts "found source" if $verbose
-        sources.push((not block_given? or yield op) ? op : op.successor)
+        sources.push((not block_given? or yield op) ? op : detected[op])
       else
-        puts "adding preds #{op.preds.map{|p|p.idx+1}.inspect}" if $verbose
-        successor = (op.successor.nil? or not block_given? or yield op) ? op : op.successor
-        op.preds.sort_by{ |p| p.nil? ? 0 : (p.is_red? ? 2 : 1) }.each do |p| # puts the red ones first
-          if not p.nil? and p.successor.nil? # if this one already has a successor the other one will be shorter
-            p.successor = successor  # link from where we found this one
-            stack.push p
-          end
+        successor = (detected[op].nil? or not block_given? or yield op) ? op : detected[op]
+
+        all_preds = op.is_sink? ? op.sink_reasons : op.preds
+        
+        # if this one was already detected the other path will be shorter
+        preds = all_preds.find_all { |p| not p.nil? and not detected.has_key?(p) }
+        
+        # put the red ones first
+        preds = preds.sort_by { |p| p.nil? ? 0 : (p.is_red? ? 2 : 1) }
+
+        if $verbose
+          skipped = all_preds - preds
+          puts "adding preds #{preds.map{|p|p.idx+1}.inspect} (skipping #{skipped.map{|p|p.idx+1}.inspect})"
         end
-        puts if $verbose
+        
+        preds.each do |p|
+          queue.push p
+          detected[p] = successor # link from where we found this one
+        end
       end
     end
+
+    paths = []
+    sources.each do |src|
+      trace = []
+      cur = src
+      
+      while not cur.nil?
+        trace.push cur
+        cur = detected[cur]
+      end
+
+      paths.push trace
+    end
     
-    return sources
+    return paths
   end
   
-  @@sources_no_tmp = lambda { |op| ((not op.is_tmp_var?) or op.is_sink) and (not block_given? or yield op) }
+  @@sources_no_tmp = lambda { |op| ((not op.is_tmp_var?) or op.is_sink?) and (not block_given? or yield op) }
   @@sources_no_lib = lambda { |op| not op.get_src_line.nil? }
   
   def self.sources_no_tmp
@@ -249,20 +274,7 @@ class TaintGrindOp
     }
   end
   
-  def get_trace_to_sink
-    trace = []
-    cur = self
-    
-    while not cur.nil?
-      trace.push cur
-      cur = cur.successor
-    end
-    
-    return trace
-  end
-  
-  attr_reader :func, :var, :from, :preds, :is_sink, :line, :idx
-  attr_accessor :successor
+  attr_reader :func, :var, :from, :preds, :sink_reasons, :line, :idx
 end
 
 ###### PROCESS CLI ARGS ##########
@@ -369,7 +381,7 @@ input_lines.each_with_index do |line, idx|
     taintgrind_ops[tgo.var] = tgo
   end
   
-  if tgo.is_sink
+  if tgo.is_sink?
     sinks.push tgo
   end
 
@@ -387,23 +399,32 @@ end
 ###### SHOW TRACES ##########
 
 if not mark_taint
-  sinks.each do |sink|
+  sinks.each_with_index do |sink,sidx|
+    if sidx > 0
+      # separate each sink
+      sep = "=" * 80
+      puts($color ? sep.green : sep)
+    end
+        
     unique_traces_proc = TaintGrindOp.new_sources_unique_traces
-    sources = sink.get_sources { |op| (not unique_locs or unique_traces_proc.call(op)) and
-                                 (not notmp or TaintGrindOp.sources_no_tmp.call(op)) and
-                                 (not nolib or TaintGrindOp.sources_no_lib.call(op)) }
-    
-    sources.each do |src|
+    traces = sink.get_traces { |op| (not unique_locs or unique_traces_proc.call(op)) and
+                               (not notmp or TaintGrindOp.sources_no_tmp.call(op)) and
+                               (not nolib or TaintGrindOp.sources_no_lib.call(op)) }
+    traces.each_with_index do |trace,tidx|
+      if tidx > 0
+        # separate each source
+        sep = "-" * 80
+        puts($color ? sep.yellow : sep)    
+      end
+      
       puts ">>>> The origin of the taint should be just here <<<<"
       if src_only
-        puts src
+        puts trace[0]
       else
-        trace = src.get_trace_to_sink
-        
         if mark_trace
           output = input_lines.clone
           trace.each do |n|
-            output[n.idx] = [n.is_sink, n.is_red?, output[n.idx]]
+            output[n.idx] = [n.is_sink?, n.is_red?, output[n.idx]]
           end
           output.each_with_index do |l,idx|
             print "%8d   " % (idx+1)
@@ -425,8 +446,6 @@ if not mark_taint
           puts trace
         end
       end
-      sep = "=" * 80
-      puts($color ? sep.yellow : sep)
     end
   end
 end
