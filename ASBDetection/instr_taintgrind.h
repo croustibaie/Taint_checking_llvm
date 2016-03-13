@@ -104,12 +104,16 @@ namespace TaintAnalysis {
             // 4. load the value from memory again and replace all usages of the taint source with the loaded value
             Value* taintedPtr = builder.CreateLoad(taintCell, "tainted_" + taintSource->getName());
 
-            for (auto uit = taintSource->use_begin(); uit != taintSource->use_end(); ++uit) {
-                User* user = uit->getUser();
-                if (user != storeTaintSrc) {
-                    // replace the taintSource with the taintedPtr
-                    user->replaceUsesOfWith(taintSource, taintedPtr);
+            while (taintSource->hasNUsesOrMore(2)) {
+                auto uit = taintSource->use_begin();
+
+                if (uit->getUser() == storeTaintSrc) {
+                    ++uit;
                 }
+                assert(uit->getUser() != storeTaintSrc && "should be covered above");
+                
+                // replace the taintSource with the taintedPtr
+                uit->set(taintedPtr);
             }
                 
             logState(10, endBlock->getParent());
