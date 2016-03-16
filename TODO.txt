@@ -7,6 +7,14 @@ implement missing detection functionality
        Both behave identically except that one shows up as Cmp in the taintgrind log and the other
        as evil Sub.. we somehow have to work around this   CHECK
  - taint ending up in syscall
+    +++ YEAHH, ok: I finally managed to instrument the glibc syscalls in file
+                   /home/cui/gits/master/glibc/glibc-2.22/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
+                   The two commands in l. 35f show up in the complete taintgrind log.
+                   Ideally we would like to do the following to make it detectable:
+                       If %rdi == write syscall:  (%rdi is the first argument)
+                           movq (%rsi),%rcx    # load %rsi (the pointer) into %rcx (I guess)
+                           addq $0x1,%rcx      # do some operation just to make it show up
+                                               # if the value is tainted
  - taint ending up in conditions CHECK
  - null ptr comparisons (there is already one test in instr_cop) CHECK
  - malloc, etc.
