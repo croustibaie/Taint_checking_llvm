@@ -1,0 +1,36 @@
+From 24605259cea598a41043408e407901100783bec5 Mon Sep 17 00:00:00 2001
+From: David Poetzsch-Heffter <davidpoetzsch@web.de>
+Date: Sun, 20 Mar 2016 19:13:19 +0100
+Subject: [PATCH] added special case that makes the write syscall pop up in the
+ taintgrind trace if the contents of the buffer that is to be written are
+ tainted
+
+---
+ sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h b/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
+index 6436ff0..a7a2fcb 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
++++ b/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
+@@ -32,6 +32,17 @@
+ # define PSEUDO(name, syscall_name, args)				      \
+   .text;								      \
+   ENTRY (name)								      \
++    /* We might wanna do this using macros but for now this is easier */      \
++    pushq %rbx;								      \
++    movq $SYS_ify(syscall_name),%rbx;					      \
++    cmp $SYS_ify(write),%rbx;						      \
++    jne __##syscall_name##_taint_end;					      \
++    mov (%rsi),%rbx;							      \
++    cmp $0,%rbx;							      \
++    je __##syscall_name##_taint_end;					      \
++  __##syscall_name##_taint_end:						      \
++    popq %rbx;								      \
++    /* end path for taint-checking */					      \
+     SINGLE_THREAD_P;							      \
+     jne L(pseudo_cancel);						      \
+   .type __##syscall_name##_nocancel,@function;				      \
+-- 
+2.5.0
+
