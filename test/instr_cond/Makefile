@@ -21,4 +21,4 @@ O3: $(C_FILES:.c=.O3.ll)
 all: O0 O1 O3
 
 clean:
-	rm *.ll
+	rm -f *.ll *~
