@@ -5,8 +5,9 @@ tests.py for dynamic taint analysis tests
 # import the test infrastructure
 from infrastructure.tests import make_tests
 import os
+from os.path import splitext, basename
 
-optionals = []
+optionals = ["write04"]
 
 def allTests():
     """
@@ -16,7 +17,7 @@ def allTests():
     
     for test in tests:
         # mark optionals
-        if test.getName() in optionals:
+        if basename(splitext(splitext(test.getName())[0])[0]) in optionals:
             test.opt()
 
         test.timeoutFactor = 3
