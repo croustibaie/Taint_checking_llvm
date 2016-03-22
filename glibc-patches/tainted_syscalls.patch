@@ -1,8 +1,8 @@
 From 24605259cea598a41043408e407901100783bec5 Mon Sep 17 00:00:00 2001
 From: David Poetzsch-Heffter <davidpoetzsch@web.de>
 Date: Sun, 20 Mar 2016 19:13:19 +0100
-Subject: [PATCH] added special case that makes the write syscall pop up in the
- taintgrind trace if the contents of the buffer that is to be written are
+Subject: [PATCH 1/2] added special case that makes the write syscall pop up in
+ the taintgrind trace if the contents of the buffer that is to be written are
  tainted
 
 ---
@@ -28,6 +28,47 @@ index 6436ff0..a7a2fcb 100644
 +  __##syscall_name##_taint_end:						      \
 +    popq %rbx;								      \
 +    /* end path for taint-checking */					      \
+     SINGLE_THREAD_P;							      \
+     jne L(pseudo_cancel);						      \
+   .type __##syscall_name##_nocancel,@function;				      \
+-- 
+2.5.0
+
+
+From 1fd2728a852f44a14e1abd99d7495eb948fa3908 Mon Sep 17 00:00:00 2001
+From: David Poetzsch-Heffter <davidpoetzsch@web.de>
+Date: Tue, 22 Mar 2016 22:57:40 +0100
+Subject: [PATCH 2/2] fixed taint-patch for write syscall: we have to check
+ *all* the printed data, not just the first 8 bytes
+
+---
+ sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h b/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
+index a7a2fcb..9a9758b 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
++++ b/sysdeps/unix/sysv/linux/x86_64/sysdep-cancel.h
+@@ -37,12 +37,19 @@
+     movq $SYS_ify(syscall_name),%rbx;					      \
+     cmp $SYS_ify(write),%rbx;						      \
+     jne __##syscall_name##_taint_end;					      \
+-    mov (%rsi),%rbx;							      \
+-    cmp $0,%rbx;							      \
++    movb $0,%bl;							      \
++    movq %rdx,%rcx;							      \
++    cmp $0,%rcx;							      \
++    je __##syscall_name##_taint_loop_bottom;				      \
++  __##syscall_name##_taint_loop_head:					      \
++    orb -1(%rsi,%rcx),%bl;						      \
++    loop __##syscall_name##_taint_loop_head;				      \
++  __##syscall_name##_taint_loop_bottom:					      \
++    cmp $0,%bl;								      \
+     je __##syscall_name##_taint_end;					      \
+   __##syscall_name##_taint_end:						      \
+     popq %rbx;								      \
+-    /* end path for taint-checking */					      \
++    /* end patch for taint-checking */					      \
      SINGLE_THREAD_P;							      \
      jne L(pseudo_cancel);						      \
    .type __##syscall_name##_nocancel,@function;				      \
