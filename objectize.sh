@@ -21,18 +21,19 @@ if [ -z "$1" ]; then
 fi
 
 SRC="$1"
-SRC_BASE=`basename "$SRC" .c`
 
 if [ -z "$2" ]; then
-    DEST=`dirname "$SRC"`/"$SRC_BASE".o
+    DEST=`dirname "$SRC"`/`basename "$SRC" .c`.o
 else
     DEST="$2"
 fi
 
+DEST_BASE=`basename "$DEST" .o`
+
 # generate random id
 #RID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1`
-#BASE="$SRC_BASE_$RID"
-BASE="$SRC_BASE"
+#BASE="$DEST_BASE_$RID"
+BASE="$DEST_BASE"
 
 BC1="/tmp/$BASE.bc"
 BC2="/tmp/${BASE}.instr.bc"
