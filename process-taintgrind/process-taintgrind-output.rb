@@ -199,7 +199,7 @@ class TaintGrindOp
     detected = { self => nil }
     
     while not queue.empty?
-      print "%20s  " % queue.map{|n|n.idx+1}.inspect if $verbose
+      print "%30s  " % queue.map{|n|n.idx+1}.inspect if $verbose
       op = queue.shift
 
       
