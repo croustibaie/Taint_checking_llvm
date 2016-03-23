@@ -1,14 +1,22 @@
 #!/bin/sh
 
+CLEANUP=1
 ARGS=""
 
 while [[ -n "$1" && "$1" != *.c ]]; do
-    ARGS="$ARGS $1"
+    if [ "$1" = "-no-cleanup" ]; then
+        CLEANUP=0
+    else
+        ARGS="$ARGS $1"
+    fi
     shift
 done
 
 if [ -z "$1" ]; then
     echo "Usage: objectize.sh [compilation arguments] <c-file> [object-file]"
+    echo "Args:"
+    echo "  -no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
+    echo "  All other arguments are directly passed to the initial compilation of the c source"
     exit 1
 fi
 
@@ -27,7 +35,7 @@ fi
 BASE="$SRC_BASE"
 
 BC1="/tmp/$BASE.bc"
-BC2="/tmp/${BASE}_instr.bc"
+BC2="/tmp/${BASE}.instr.bc"
 
 echo "clang -emit-llvm -c $ARGS -o \"$BC1\" \"$SRC\""
 clang -emit-llvm -c $ARGS -o "$BC1" "$SRC"
@@ -40,4 +48,8 @@ if [ $? = 0 ]; then
         echo "clang -g -O0 -c -o \"$DEST\" \"$BC2\""
         clang -g -O0 -c -o "$DEST" "$BC2"
     fi
+fi
+
+if [ $CLEANUP = 1 ]; then
+    rm -f "$BC1" "$BC2"
 fi
