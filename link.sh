@@ -7,5 +7,4 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-echo "clang -g -O0 -Wl,-wrap,malloc,-wrap,realloc,-wrap,calloc,-wrap,write $@ \"$WRAPPERS_DIR\"/libc_wrapper.o"
 exec clang -g -O0 -Wl,-wrap,malloc,-wrap,realloc,-wrap,calloc,-wrap,write $@ "$WRAPPERS_DIR"/libc_wrapper.o

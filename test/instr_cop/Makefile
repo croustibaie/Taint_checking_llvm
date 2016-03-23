@@ -2,23 +2,32 @@
 
 default: all
 
+BUILD_TOOLS_DIR := ../..
 C_FILES := $(wildcard *.c)
-CFLAGS := -g -emit-llvm -S
 
-%.O0.ll: %.c
-	clang -O0 $(CFLAGS) -o $@ $<
+%.O0.o: %.c
+	$(BUILD_TOOLS_DIR)/objectize.sh -O0 $< $@
 
-%.O1.ll: %.c
-	clang -O1 $(CFLAGS) -o $@ $<
+%.O1.o: %.c
+	$(BUILD_TOOLS_DIR)/objectize.sh -O0 $< $@
 
-%.O3.ll: %.c
-	clang -O3 $(CFLAGS) -o $@ $<
+%.O3.o: %.c
+	$(BUILD_TOOLS_DIR)/objectize.sh -O0 $< $@
 
-O0: $(C_FILES:.c=.O0.ll)
-O1: $(C_FILES:.c=.O1.ll)
-O3: $(C_FILES:.c=.O3.ll)
+%.O0: %.O0.o
+	$(BUILD_TOOLS_DIR)/link.sh -o $@ $<
+
+%.O1: %.O1.o
+	$(BUILD_TOOLS_DIR)/link.sh -o $@ $<
+
+%.O3: %.O3.o
+	$(BUILD_TOOLS_DIR)/link.sh -o $@ $<
+
+O0: $(C_FILES:.c=.O0)
+O1: $(C_FILES:.c=.O1)
+O3: $(C_FILES:.c=.O3)
 
 all: O0 O1 O3
 
 clean:
-	rm -f *.ll *~
+	rm -f *.o *.O[013] *~

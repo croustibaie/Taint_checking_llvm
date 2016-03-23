@@ -12,7 +12,7 @@ def allTests():
     """
     This function returns a list of tests.
     """
-    tests = make_tests("instr_cond", "dyntaint.sh", True, ["-no-color"])
+    tests = make_tests("instr_cond", "../dynalize.sh", True, ["-no-color"])
     
     for test in tests:
         # mark optionals

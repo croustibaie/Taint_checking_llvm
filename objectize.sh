@@ -37,18 +37,9 @@ BASE="$SRC_BASE"
 BC1="/tmp/$BASE.bc"
 BC2="/tmp/${BASE}.instr.bc"
 
-echo "clang -emit-llvm -c $ARGS -o \"$BC1\" \"$SRC\""
-clang -emit-llvm -c $ARGS -o "$BC1" "$SRC"
-
-if [ $? = 0 ]; then
-    echo "opt -S -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < \"$BC1\" > \"$BC2\""
-    opt -S -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < "$BC1" > "$BC2"
-
-    if [ $? = 0 ]; then
-        echo "clang -g -O0 -c -o \"$DEST\" \"$BC2\""
-        clang -g -O0 -c -o "$DEST" "$BC2"
-    fi
-fi
+clang -emit-llvm -c $ARGS -o "$BC1" "$SRC" && \
+    opt -S -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < "$BC1" > "$BC2" && \
+    clang -g -O0 -c -o "$DEST" "$BC2"
 
 if [ $CLEANUP = 1 ]; then
     rm -f "$BC1" "$BC2"
