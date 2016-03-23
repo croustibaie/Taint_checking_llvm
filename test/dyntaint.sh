@@ -37,13 +37,15 @@ SRC_BASE=`basename "$SRC" .ll`
 BASE="$SRC_BASE"
 
 DEST_LL="/tmp/$BASE.ll"
+DEST_OBJ="/tmp/$BASE.o"
 DEST_EXE="/tmp/$BASE"
 DEST_TG="/tmp/$BASE.taintgrind.log"
 
 GLIBC_BASE="/home/cui/gits/master/glibc/install"
 
 $(dirname $0)/asbdetect.sh -asb-log-level 0 -asb_detection_instr_only "$SRC" "$DEST_LL" && \
-    clang -g -O0 -nostdlib -static -o "$DEST_EXE" $GLIBC_BASE/lib/crt1.o $GLIBC_BASE/lib/crti.o `gcc --print-file-name=crtbegin.o` "$DEST_LL" -Wl,--start-group $GLIBC_BASE/lib/libc.a -lgcc -lgcc_eh -Wl,--end-group `gcc --print-file-name=crtend.o` $GLIBC_BASE/lib/crtn.o && \
+    clang -g -O0 -c -o "$DEST_OBJ" "$DEST_LL" && \
+    clang -g -O0 -Wl,-wrap,malloc,-wrap,realloc,-wrap,calloc,-wrap,write -o "$DEST_EXE" "$DEST_OBJ" ../wrappers/libc_wrapper.o
     valgrind --tool=taintgrind --tainted-ins-only=yes "$DEST_EXE" > /dev/null 2> "$DEST_TG"
 
 $(dirname $0)/../process-taintgrind/process-taintgrind-output.rb $PTO_ARGS "$DEST_TG"
