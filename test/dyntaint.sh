@@ -41,11 +41,11 @@ DEST_OBJ="/tmp/$BASE.o"
 DEST_EXE="/tmp/$BASE"
 DEST_TG="/tmp/$BASE.taintgrind.log"
 
-GLIBC_BASE="/home/cui/gits/master/glibc/install"
+WRAPPERS_DIR=$(dirname "$0")/../wrappers
 
 $(dirname $0)/asbdetect.sh -asb-log-level 0 -asb_detection_instr_only "$SRC" "$DEST_LL" && \
     clang -g -O0 -c -o "$DEST_OBJ" "$DEST_LL" && \
-    clang -g -O0 -Wl,-wrap,malloc,-wrap,realloc,-wrap,calloc,-wrap,write -o "$DEST_EXE" "$DEST_OBJ" ../wrappers/libc_wrapper.o
+    clang -g -O0 -Wl,-wrap,malloc,-wrap,realloc,-wrap,calloc,-wrap,write -o "$DEST_EXE" "$DEST_OBJ" "$WRAPPERS_DIR"/libc_wrapper.o
     valgrind --tool=taintgrind --tainted-ins-only=yes "$DEST_EXE" > /dev/null 2> "$DEST_TG"
 
 $(dirname $0)/../process-taintgrind/process-taintgrind-output.rb $PTO_ARGS "$DEST_TG"
