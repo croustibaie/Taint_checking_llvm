@@ -1,1 +1,4 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                    malloc01.c:0004:                 main:  int* a = malloc(sizeof(int)*3);
+B                    malloc01.c:0005:                 main:  return (int) a;
+B                            ??:0000:                _Exit:  [file not found]
