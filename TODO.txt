@@ -3,14 +3,11 @@ implement missing detection functionality
  - logic operators && || !  CHECK
  - bitwise ops & | ^ ~ << >>
  - eq operators < <= == != > >= CHECK
-   +++ YEEAAHH.. there's that thing that a == might be translated to a x86 sub or to a x86 cmp
-       Both behave identically except that one shows up as Cmp in the taintgrind log and the other
-       as evil Sub.. we somehow have to work around this   CHECK
  - taint ending up in syscall
-   +++ CHECK for write (see also https://sourceware.org/glibc/wiki/SyscallWrappers)
+  + for write, writev (see also https://sourceware.org/glibc/wiki/SyscallWrappers) CHECK
  - taint ending up in conditions CHECK
  - null ptr comparisons (there is already one test in instr_cop) CHECK
- - malloc, etc.
+ - malloc, etc. CHECK
 
 scale
  - test with multiple files as input
