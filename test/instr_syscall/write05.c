@@ -2,8 +2,8 @@
 #include  <fcntl.h>
 
 int main() {
-    long i = 0;
-    long ip = 0x000000000000ff00 & i;
+    int i = 0;
+    long ip = (long) &i;
 
     ssize_t nwritten = write(STDOUT_FILENO, &ip, sizeof(ip));
 
