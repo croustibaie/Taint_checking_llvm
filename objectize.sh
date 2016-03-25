@@ -3,7 +3,7 @@
 CLEANUP=1
 ARGS=""
 
-while [[ -n "$1" && "$1" != *.c ]]; do
+while [[ -n "$1" && "$1" != *.c && "$1" != *.cpp ]]; do
     if [ "$1" = "-no-cleanup" ]; then
         CLEANUP=0
     else
@@ -23,7 +23,8 @@ fi
 SRC="$1"
 
 if [ -z "$2" ]; then
-    DEST=`dirname "$SRC"`/`basename "$SRC" .c`.o
+    BN_SRC=$(basename "$SRC")
+    DEST="${BN_SRC%.*}".o
 else
     DEST="$2"
 fi
