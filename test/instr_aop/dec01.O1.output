@@ -1,1 +1,9 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                       dec01.c:0006:                 main:  int main() {
+B                       dec01.c:0008:                 main:  int* xp = &x;
+B                       dec01.c:0009:                 main:  return f((int) xp);
+B                       dec01.c:0001:                    f:  int f(int a) {
+B                       dec01.c:0001:                    f:  int f(int a) {
+B                       dec01.c:0002:                    f:  --a;
+B                       dec01.c:0003:                    f:  return a;
+B                            ??:0000:                _Exit:  [file not found]

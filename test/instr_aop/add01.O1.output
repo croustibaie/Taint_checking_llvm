@@ -1,1 +1,17 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                       add01.c:0005:                 main:  int main() {
+B                       add01.c:0009:                 main:  int* yp = &y;
+B                       add01.c:0010:                 main:  return f((int) xp, (int) yp);
+B                       add01.c:0001:                    f:  int f(int a, int b) {
+B                       add01.c:0001:                    f:  int f(int a, int b) {
+R                       add01.c:0002:                    f:  return a+b;
+R                            ??:0000:                _Exit:  [file not found]
+--------------------------------------------------------------------------------
+>>>> The origin of the taint should be just here <<<<
+B                       add01.c:0005:                 main:  int main() {
+B                       add01.c:0008:                 main:  int* xp = &x;
+B                       add01.c:0010:                 main:  return f((int) xp, (int) yp);
+B                       add01.c:0001:                    f:  int f(int a, int b) {
+B                       add01.c:0001:                    f:  int f(int a, int b) {
+R                       add01.c:0002:                    f:  return a+b;
+R                            ??:0000:                _Exit:  [file not found]
