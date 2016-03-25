@@ -188,12 +188,30 @@ class TaintGrindOp
   def to_s
     line = self.get_src_line
     line = "[file not found]" if line.nil?
-    line = line.red if self.is_sink? and $color
+    if $color
+      if self.is_sink?
+        line = line.magenta
+      else
+        line = case @taint
+               when :red then line.red
+               when :blue then line.blue
+               when :green then line.green
+               end
+      end
+      taint = ""
+    end
 
+    taint = case @taint
+            when :red then "R"
+            when :blue then "B"
+            when :green then "G"
+            else " "
+            end
+    
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
     
-    return "%30s:%.4d: %20s:  %s" % [file.to_s, self.get_lineno, @func, line]
+    return "%s%30s:%.4d: %20s:  %s" % [taint, file.to_s, self.get_lineno, @func, line]
   end
   
   def get_traces
