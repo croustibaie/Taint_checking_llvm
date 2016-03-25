@@ -1,1 +1,7 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                     deref05.c:0001:                 main:  int main() {
+B                     deref05.c:0003:                 main:  long ip = (long) &i;
+R                     deref05.c:0004:                 main:  long r = ip + ip;
+R                     deref05.c:0008:                 main:  a[1] = r;
+R                     deref05.c:0012:                 main:  return b[2];
+R                            ??:0000:                _Exit:  [file not found]

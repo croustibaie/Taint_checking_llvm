@@ -1,1 +1,3 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                     deref03.c:0001:                 main:  int main() {
+G                     deref03.c:0006:                 main:  return ary[((int) &ary) % 2];
