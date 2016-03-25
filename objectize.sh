@@ -30,10 +30,13 @@ fi
 
 DEST_BASE=`basename "$DEST" .o`
 
-# generate random id
-#RID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1`
-#BASE="$DEST_BASE_$RID"
-BASE="$DEST_BASE"
+if [ $CLEANUP = 1 ]; then
+    # generate random id
+    RID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1`
+    BASE="$DEST_BASE_$RID"
+else
+    BASE="$DEST_BASE"
+fi
 
 BC1="/tmp/$BASE.bc"
 BC2="/tmp/${BASE}.instr.bc"

@@ -56,10 +56,13 @@ else
     fi
 fi
 
-# generate random id
-#RID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1`
-#BASE="$TMP_BASE_$RID"
-BASE="$TMP_BASE"
+if [ $CLEANUP = 1 ]; then
+    # generate random id
+    RID=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 4 | head -n 1`
+    BASE="$TMP_BASE_$RID"
+else
+    BASE="$TMP_BASE"
+fi
 
 DEST_TG="$TMP_BASE.taintgrind.log"
 CLEANUP_FILES="$CLEANUP_FILES $DEST_TG"
