@@ -1,1 +1,6 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                        if01.c:0012:                 main:  int main() {
+B                        if01.c:0013:                 main:  int i = 0;
+B                        if01.c:0005:                    f:  int f(int b) {
+B                        if01.c:0010:                    f:  }
+R                        if01.c:0006:                    f:  if ((b+b) == (b+5)) {

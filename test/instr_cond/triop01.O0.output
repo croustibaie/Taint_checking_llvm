@@ -1,1 +1,6 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                     triop01.c:0005:                 main:  int main() {
+B                     triop01.c:0006:                 main:  int i = 0;
+B                     triop01.c:0001:                    f:  int f(int b) {
+B                     triop01.c:0001:                    f:  int f(int b) {
+R                     triop01.c:0002:                    f:  return ((b+b) == (b+5)) ? 0 : 4;
