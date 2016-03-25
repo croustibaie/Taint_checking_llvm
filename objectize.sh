@@ -13,7 +13,7 @@ while [[ -n "$1" && "$1" != *.c ]]; do
 done
 
 if [ -z "$1" ]; then
-    echo "Usage: objectize.sh [compilation arguments] <c-file> [object-file]"
+    echo "Usage: objectize.sh [args] <c-file> [object-file]"
     echo "Args:"
     echo "  -no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
     echo "  All other arguments are directly passed to the initial compilation of the c source"
@@ -38,8 +38,17 @@ BASE="$DEST_BASE"
 BC1="/tmp/$BASE.bc"
 BC2="/tmp/${BASE}.instr.bc"
 
-clang -emit-llvm -c $ARGS -o "$BC1" "$SRC" && \
-    opt -S -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < "$BC1" > "$BC2" && \
+# if we don't clean up generate human readable llvm IR instead of bitcode
+if [ $CLEANUP = 1 ]; then
+    CLANG_LLVM_FORMAT_ARG="-c"
+    OPT_LLVM_FORMAT_ARG=""
+else
+    CLANG_LLVM_FORMAT_ARG="-S"
+    OPT_LLVM_FORMAT_ARG="-S"
+fi
+
+clang -emit-llvm $CLANG_LLVM_FORMAT_ARG $ARGS -o "$BC1" "$SRC" && \
+    opt $OPT_LLVM_FORMAT_ARG -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < "$BC1" > "$BC2" && \
     clang -g -O0 -c -o "$DEST" "$BC2"
 
 if [ $CLEANUP = 1 ]; then
