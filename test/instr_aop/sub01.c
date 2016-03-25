@@ -1,9 +1,5 @@
-#include <unistd.h>
-#include <fcntl.h>
-
-void f(int a, int b) {
-    int d = a-b;
-    ssize_t nwritten = write(STDOUT_FILENO, &d, sizeof(d));
+int f(int a, int b) {
+    return a-b;
 }
 
 int main() {
@@ -11,6 +7,5 @@ int main() {
     int y = 5;
     int* xp = &x;
     int* yp = &y;
-    f((int) xp, (int) yp);
-    return 0;
+    return f((int) xp, (int) yp);
 }
