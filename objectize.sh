@@ -56,7 +56,7 @@ else
     BC2="$BC2.ll"
 fi
 
-clang -emit-llvm $CLANG_LLVM_FORMAT_ARG $ARGS -o "$BC1" "$SRC" && \
+clang -g -emit-llvm $CLANG_LLVM_FORMAT_ARG $ARGS -o "$BC1" "$SRC" && \
     opt $OPT_LLVM_FORMAT_ARG -load $(dirname $0)/ASBDetection/libLLVMasbDetection.so -asb_detection -asb-log-level 0 -asb_detection_instr_only < "$BC1" > "$BC2" && \
     clang -g -O0 -c -o "$DEST" "$BC2"
 
