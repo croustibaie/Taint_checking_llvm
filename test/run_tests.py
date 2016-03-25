@@ -21,7 +21,7 @@ from infrastructure.timed_process import TimedProcess
 import os, sys, getopt, subprocess
 
 def invoke(directory, processes, valgrind):
-    os.system("make -C '%s' all" % directory)
+    os.system("make -C '%s' -j %d all" % (directory, processes))
     print("-" * 80)
         
     tests = infrastructure.tests.get_tests_from_dir(directory)
