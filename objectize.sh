@@ -28,7 +28,7 @@ else
     DEST="$2"
 fi
 
-DEST_BASE=`basename "$DEST" .o`
+DEST_BASE=/tmp/`basename "$DEST" .o`
 
 if [ $CLEANUP = 1 ]; then
     # generate random id
@@ -38,16 +38,22 @@ else
     BASE="$DEST_BASE"
 fi
 
-BC1="/tmp/$BASE.bc"
-BC2="/tmp/${BASE}.instr.bc"
+BC1="$BASE"
+BC2="${BASE}.instr"
 
 # if we don't clean up generate human readable llvm IR instead of bitcode
 if [ $CLEANUP = 1 ]; then
     CLANG_LLVM_FORMAT_ARG="-c"
     OPT_LLVM_FORMAT_ARG=""
+
+    BC1="$BC1.bc"
+    BC2="$BC2.bc"
 else
     CLANG_LLVM_FORMAT_ARG="-S"
     OPT_LLVM_FORMAT_ARG="-S"
+
+    BC1="$BC1.ll"
+    BC2="$BC2.ll"
 fi
 
 clang -emit-llvm $CLANG_LLVM_FORMAT_ARG $ARGS -o "$BC1" "$SRC" && \
