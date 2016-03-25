@@ -27,6 +27,9 @@ namespace TaintAnalysis {
             BasicBlock* doBodyBlock = BasicBlock::Create(getGlobalContext(), "doBody_" + taintSource->getName(), startBlock->getParent());
                 
             BasicBlock* endBlock = BasicBlock::Create(getGlobalContext(), "instrEnd_" + taintSource->getName(), startBlock->getParent());
+
+            startBlock->replaceSuccessorsPhiUsesWith(endBlock);
+
             bool move = false;
             std::vector<Instruction*> toMove;
             for (auto it2 = startBlock->begin(); it2 != startBlock->end(); ++it2) {
@@ -162,7 +165,7 @@ namespace TaintAnalysis {
                 // Ok, let's taint/untaint that value!
                 instrumentValue(it->first, it->second);
             }
-            
+
             return !taintSources.empty();
         }
 
