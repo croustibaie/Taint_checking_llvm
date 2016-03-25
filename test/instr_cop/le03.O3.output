@@ -1,1 +1,7 @@
-TODO
+>>>> The origin of the taint should be just here <<<<
+B                        le03.c:0005:                 main:  int main() {
+B                        le03.c:0008:                 main:  return f(a, (int) &b);
+B                        le03.c:0001:                    f:  int f(int a, int b) {
+B                        le03.c:0001:                    f:  int f(int a, int b) {
+R                        le03.c:0002:                    f:  return a <= b;
+R                            ??:0000:                _Exit:  [file not found]
