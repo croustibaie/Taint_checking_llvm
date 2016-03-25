@@ -1,7 +1,7 @@
 implement missing detection functionality
  - operators + - * / % ++ --   CHECK
  - logic operators && || !  CHECK
- - bitwise ops & | ^ ~ << >>
+ - bitwise ops & | ^ ~ << >> CHECK
  - eq operators < <= == != > >= CHECK
  - taint ending up in syscall
   + for write, writev (see also https://sourceware.org/glibc/wiki/SyscallWrappers) CHECK
