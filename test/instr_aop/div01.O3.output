@@ -1,8 +1,1 @@
->>>> The origin of the taint should be just here <<<<
-                       aop13.c:0005:                 main:  int main() {
-                       aop13.c:0010:                 main:  return f((int) xp, (int) yp);
-================================================================================
->>>> The origin of the taint should be just here <<<<
-                       aop13.c:0005:                 main:  int main() {
-                       aop13.c:0010:                 main:  return f((int) xp, (int) yp);
-================================================================================
+TODO

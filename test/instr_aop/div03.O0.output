@@ -1,8 +1,1 @@
->>>> The origin of the taint should be just here <<<<
-                       aop15.c:0005:                 main:  int main() {
-                       aop15.c:0008:                 main:  int* yp = &y;
-                       aop15.c:0009:                 main:  return f(x, (int) yp);
-                       aop15.c:0001:                    f:  int f(int a, int b) {
-                       aop15.c:0001:                    f:  int f(int a, int b) {
-                       aop15.c:0002:                    f:  return a/b;
-================================================================================
+TODO

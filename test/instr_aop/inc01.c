@@ -1,10 +1,14 @@
-int f(int a) {
+#include <unistd.h>
+#include  <fcntl.h>
+
+void f(int a) {
     ++a;
-    return a;
+    ssize_t nwritten = write(STDOUT_FILENO, &a, sizeof(a));
 }
 
 int main() {
     int x = 4;
     int* xp = &x;
-    return f((int) xp);
+    f((int) xp);
+    return 0;
 }

@@ -1,16 +1,1 @@
->>>> The origin of the taint should be just here <<<<
-                       aop05.c:0005:                 main:  int main() {
-                       aop05.c:0009:                 main:  int* yp = &y;
-                       aop05.c:0010:                 main:  return f((int) xp, (int) yp);
-                       aop05.c:0001:                    f:  int f(int a, int b) {
-                       aop05.c:0001:                    f:  int f(int a, int b) {
-                       aop05.c:0002:                    f:  return a-b;
-================================================================================
->>>> The origin of the taint should be just here <<<<
-                       aop05.c:0005:                 main:  int main() {
-                       aop05.c:0008:                 main:  int* xp = &x;
-                       aop05.c:0010:                 main:  return f((int) xp, (int) yp);
-                       aop05.c:0001:                    f:  int f(int a, int b) {
-                       aop05.c:0001:                    f:  int f(int a, int b) {
-                       aop05.c:0002:                    f:  return a-b;
-================================================================================
+TODO

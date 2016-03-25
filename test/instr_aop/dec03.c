@@ -2,7 +2,7 @@
 #include  <fcntl.h>
 
 void f(int a) {
-    --a;
+    a--;
     ssize_t nwritten = write(STDOUT_FILENO, &a, sizeof(a));
 }
 
