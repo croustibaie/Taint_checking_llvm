@@ -86,11 +86,15 @@ class TaintGrindOp
     # is this a sink?
     # cmp operations untaint the value -> we have to mark them as sink
     #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
-    
-    if (cmd =~ /^IF ([\w_]+) /) or (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/)
+
+    if ((cmd =~ /^IF ([\w_]+) /) or
+        (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/))
       # we can safely allow blue taint to reach a condition because
       # it is either 0 (null) in all variants or a valid pointer (-> true)
       @sink_reasons += @preds.find_all { |p| not p.nil? and p.is_red? and p.var == $1 }
+    elsif (@func == "_Exit")
+      # we must not allow returning tainted exit values
+      @sink_reasons += @preds.find_all { |p| not p.nil? }
     end
 
     if not @@sink_lines.empty?
