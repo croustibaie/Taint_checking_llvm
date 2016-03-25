@@ -68,7 +68,11 @@ class TaintGrindOp
           (cmd =~ / = Mul/) or
           (cmd =~ / = Div/) or
           (cmd =~ / = Mod/) or
-          (cmd =~ / = Shl/))
+          (cmd =~ / = And/) or
+          (cmd =~ / = Or/) or
+          (cmd =~ / = Xor/) or
+          (cmd =~ / = Shl/) or
+          (cmd =~ / = Sar/))
         @taint = :red
       elsif (cmd =~ / = Cmp/ and self.is_blue?) # at least one pred is blue then
         if @preds.find_all{|p|not p.nil? and p.is_blue?}.length > 1
