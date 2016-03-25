@@ -1,5 +1,5 @@
 int f(int x) {
-    return x == 0 ? 23 : 42;
+    return x == 0;
 }
 
 int main() {
