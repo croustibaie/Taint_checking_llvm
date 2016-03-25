@@ -52,7 +52,7 @@ class TaintGrindOp
         # we MUST not dereference a red value, however this does not count as taintflow
         @sink_reasons += $2.split(", ").find_all {|f| graph.has_key?(f) and graph[f].is_red? }.map { |f| graph[f] }
       elsif pred =~ /^(.+?) <-\*- (.+?)$/ # e.g. t78_744 <-*- t72_268
-        # what's the difference to above?
+        # we MUST not store at a red value
         @sink_reasons += $2.split(", ").find_all {|f| graph.has_key?(f) and graph[f].is_red? }.map { |f| graph[f] }
       else  # e.g. t54_1741
         @preds += pred.split(", ").map { |f| graph.has_key?(f) ? graph[f] : nil }
@@ -87,6 +87,7 @@ class TaintGrindOp
     # cmp operations untaint the value -> we have to mark them as sink
     #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
 
+    # remember: LOAD/STORE is already handled above
     if ((cmd =~ /^IF ([\w_]+) /) or
         (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/))
       # we can safely allow blue taint to reach a condition because

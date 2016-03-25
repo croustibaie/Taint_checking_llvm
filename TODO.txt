@@ -8,6 +8,7 @@ implement missing detection functionality
  - taint ending up in conditions CHECK
  - null ptr comparisons (there is already one test in instr_cop) CHECK
  - malloc, etc. CHECK
+ - LOAD/STORE from red taint CHECK
 
 scale
  - test with multiple files as input
