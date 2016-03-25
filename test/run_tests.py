@@ -8,16 +8,19 @@ Command line options:
  -e, --executable <Path to executable>
      Default is 'impala' (if possible) or '../build/bin/impala' otherwise;
      on Windows '.exe' is appended
- -t, --compiler-timeout <floating point value in seconds>
-                         Default is 1.0
- -L, --valgrind   Use valgrind to check for memory leaks during testing
+ -t, --timeout <floating point value in seconds>
+     Default is 1.0
+ -j, --jobs <processes>
+     Default is 4
+ -L, --valgrind
+     Use valgrind to check for memory leaks during testing
 """
 
 import infrastructure.tests
 from infrastructure.timed_process import TimedProcess
 import os, sys, getopt, subprocess
 
-def invoke(directory, valgrind):
+def invoke(directory, processes, valgrind):
     os.system("make -C '%s' all" % directory)
     print("-" * 80)
         
@@ -26,17 +29,18 @@ def invoke(directory, valgrind):
     if valgrind:
         tests = [infrastructure.tests.ValgrindTest(t) for t in tests]
     
-    infrastructure.tests.executeTests(tests)
+    infrastructure.tests.executeTests(tests, processes)
 
 def get_executable():
     return os.path.join(".", "asbdetect.sh")
     
 def main():
     valgrind = False
+    processes = 4
     
     # get cmd file
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "he:t:L", ["help", "executable", "timeout", "valgrind"])
+        opts, args = getopt.getopt(sys.argv[1:], "he:t:j:L", ["help", "executable", "timeout", "jobs", "valgrind"])
     except getopt.error as msg:
         print(msg)
         sys.exit(2)
@@ -50,6 +54,8 @@ def main():
             TimedProcess.timeout = float(a)
         if o in ("-L", "--valgrind"):
             valgrind = True
+        if o in ("-j", ):
+            processes = int(a)
 
     if len(args) > 1:
         print("You specified too many arguments.")
@@ -61,6 +67,6 @@ def main():
     else:
         directory = args[0]
 
-    invoke(directory, valgrind)
+    invoke(directory, processes, valgrind)
 
 main()

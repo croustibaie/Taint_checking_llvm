@@ -49,7 +49,7 @@ class Test(object):
     
     def invoke(self):
         timeout = TimedProcess.timeout * self.timeoutFactor
-
+        
         p = TimedProcess(self.execCmd(), self.basedir, timeout)
         p.execute()
         return self.check(p)
@@ -178,9 +178,9 @@ def invoke_test(test):
 def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     
-def executeTests(tests):
+def executeTests(tests, processes):
     """Invoke this function with a list of test objects to run the tests. """
-    pool = multiprocessing.Pool(4, init_worker)
+    pool = multiprocessing.Pool(processes, init_worker)
     it = pool.imap(invoke_test, tests)
 
     res = {}
