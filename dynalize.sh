@@ -58,7 +58,7 @@ fi
 
 if [ $CLEANUP = 1 ]; then
     # generate unique id
-    BASE="$TMP_BASE_$$"
+    BASE="${TMP_BASE}_$$"
 else
     BASE="$TMP_BASE"
 fi

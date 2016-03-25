@@ -32,7 +32,7 @@ DEST_BASE=/tmp/`basename "$DEST" .o`
 
 if [ $CLEANUP = 1 ]; then
     # generate unique id
-    BASE="$DEST_BASE_$$"
+    BASE="${DEST_BASE}_$$"
 else
     BASE="$DEST_BASE"
 fi
