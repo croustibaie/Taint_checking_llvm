@@ -1,0 +1,11 @@
+>>>> The origin of the taint should be just here <<<<
+B                  eq_cmplx01.c:0001:                    f:  int f(int x) {
+R                  eq_cmplx01.c:0003:                    f:  return (((int) &y) == x) ? 1 : 0;
+================================================================================
+>>>> The origin of the taint should be just here <<<<
+B                  eq_cmplx01.c:0001:                    f:  int f(int x) {
+R                  eq_cmplx01.c:0003:                    f:  return (((int) &y) == x) ? 1 : 0;
+R                  eq_cmplx01.c:0003:                    f:  return (((int) &y) == x) ? 1 : 0;
+R                  eq_cmplx01.c:0008:                 main:  return f(0) + f((int) &i);
+R                  eq_cmplx01.c:0008:                 main:  return f(0) + f((int) &i);
+R                            ??:0000:                _Exit:  [file not found]
