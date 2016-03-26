@@ -270,7 +270,7 @@ class TaintGrindOp
         all_preds = op.is_sink? ? op.sink_reasons : op.preds
         
         # if this one was already detected the other path will be shorter
-        preds = all_preds.find_all { |p| not p.nil? and not detected.has_key?(p) }
+        preds = all_preds.find_all { |p| not p.nil? and not p.is_green? and not detected.has_key?(p) }
         
         # put the red ones first
         preds = preds.sort_by { |p| p.nil? ? 0 : (p.is_red? ? 2 : 1) }
