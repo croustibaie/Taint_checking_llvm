@@ -10,6 +10,26 @@ $idxwidth = 8
 $verbose = false
 $color = true
 
+class String
+  def color_by_taint(taint)
+    return case taint
+           when :red then self.red
+           when :blue then self.blue
+           when :green then self.green
+           else self
+           end
+  end
+end
+
+def taint_to_s(taint)
+  return case taint
+         when :red then "R"
+         when :blue then "B"
+         when :green then "G"
+         else " "
+         end
+end
+
 class TaintGrindOp
   @@debug = Debug.new
   @@sink_lines = []
@@ -197,23 +217,12 @@ class TaintGrindOp
     line = "[file not found]" if line.nil?
     if $color
       if self.is_sink?
-        line = line.magenta
-      else
-        line = case @taint
-               when :red then line.red
-               when :blue then line.blue
-               when :green then line.green
-               end
+        line = line.bold
       end
-      taint = ""
+      line = line.color_by_taint(@taint)
     end
 
-    taint = case @taint
-            when :red then "R"
-            when :blue then "B"
-            when :green then "G"
-            else " "
-            end
+    taint = taint_to_s(@taint)
     
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
@@ -308,7 +317,7 @@ class TaintGrindOp
     }
   end
   
-  attr_reader :func, :var, :from, :preds, :sink_reasons, :line, :idx
+  attr_reader :func, :var, :from, :preds, :sink_reasons, :line, :idx, :taint
 end
 
 ###### PROCESS CLI ARGS ##########
@@ -458,16 +467,19 @@ if not mark_taint
         if mark_trace
           output = input_lines.clone
           trace.each do |n|
-            output[n.idx] = [n.is_sink?, n.is_red?, output[n.idx]]
+            output[n.idx] = [n.is_sink?, n.taint, output[n.idx]]
           end
           output.each_with_index do |l,idx|
             print "%8d   " % (idx+1)
             
             if l.is_a? Array
               if $color
-                puts(l[0] ? l[2].magenta : (l[1] ? l[2].red : l[2].blue))
+                s = l[2].color_by_taint(l[1])
+                s = s.bold if l[0]
+                puts s
               else
-                print(l[0] ? "[S]  " : (l[1] ? "[R]  " : "[B]  "))
+                s = taint_to_s(l[1])
+                print(l[0] ? "*#{s}*  " : "[#{s}]  ")
                 puts l[2]
               end
             else
