@@ -84,8 +84,7 @@ class TaintGrindOp
     # we cannot get from green to red and we cannot go back from red so it is only interesting if we are blue
     if self.is_blue?
       # is this an instruction that automatically leads to red taint
-      if ((cmd =~ / = Add/ and @preds.length > 1) or
-          (cmd =~ / = Sub\d\d? .+ (.+)/ and (@preds.length > 1 or (@preds.length == 1 and $1 == @preds[0].var))) or
+      if ((cmd =~ / = Add/ and self.non_green_preds.length > 1) or
           (cmd =~ / = Mul/) or
           (cmd =~ / = Div/) or
           (cmd =~ / = Mod/) or
@@ -95,6 +94,10 @@ class TaintGrindOp
           (cmd =~ / = Shl/) or
           (cmd =~ / = Sar/))
         @taint = :red
+      elsif (cmd =~ / = Sub\d\d? .+ (.+)/)
+        # we allow (blue - green) but not (green - blue) or (blue - blue)
+        ngp = self.non_green_preds
+        @taint = :red if ngp.length > 1 or (ngp.length == 1 and $1 == ngp[0].var)
       elsif (cmd =~ / = Cmp/)
         # because we are blue at least one pred is blue
         # if the other one is blue, too, everything is fine and we are green
@@ -142,6 +145,10 @@ class TaintGrindOp
         @taint = :blue
       end
     end
+  end
+
+  def non_green_preds()
+    return @preds.find_all { |p| p.nil? or not p.is_green? }
   end
 
   def set_var(var)
