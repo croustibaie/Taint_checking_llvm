@@ -60,8 +60,9 @@ class TaintGrindOp
     end
 
     self.inherit_taint()
-    
-    if not self.is_red?
+
+    # we cannot get from green to red and we cannot go back from red so it is only interesting if we are blue
+    if self.is_blue?
       # is this an instruction that automatically leads to red taint
       if ((cmd =~ / = Add/ and @preds.length > 1) or
           (cmd =~ / = Sub\d\d? .+ (.+)/ and (@preds.length > 1 or (@preds.length == 1 and $1 == @preds[0].var))) or
@@ -74,7 +75,10 @@ class TaintGrindOp
           (cmd =~ / = Shl/) or
           (cmd =~ / = Sar/))
         @taint = :red
-      elsif (cmd =~ / = Cmp/ and self.is_blue?) # at least one pred is blue then
+      elsif (cmd =~ / = Cmp/)
+        # because we are blue at least one pred is blue
+        # if the other one is blue, too, everything is fine and we are green
+        # if the other one is green nothing is fine and we go red
         if @preds.find_all{|p|not p.nil? and p.is_blue?}.length > 1
           @taint = :green
         else # we know that at exactly one pred is blue because self.is_blue? above
@@ -83,21 +87,20 @@ class TaintGrindOp
       end
     end
     
-    # is this a sink?
-    # cmp operations untaint the value -> we have to mark them as sink
-    #@is_sink = (self.is_red? and (cmd =~ / = Cmp/))
-
-    # remember: LOAD/STORE is already handled above
-    if ((cmd =~ /^IF ([\w_]+) /) or
-        (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/))
-      # we can safely allow blue taint to reach a condition because
-      # it is either 0 (null) in all variants or a valid pointer (-> true)
-      @sink_reasons += @preds.find_all { |p| not p.nil? and p.is_red? and p.var == $1 }
-    elsif (@func == "_Exit")
-      # we must not allow returning tainted exit values
-      @sink_reasons += @preds.find_all { |p| not p.nil? }
+    # Is this a sink? Let's see... also note the LOAD/STORE with red taint is already handled above
+    if not self.is_green?
+      if ((cmd =~ /^IF ([\w_]+) /) or
+          (cmd =~ /[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+/))
+        # we can safely allow blue taint to reach a condition because
+        # it is either 0 (null) in all variants or a valid pointer (-> true)
+        @sink_reasons += @preds.find_all { |p| not p.nil? and p.is_red? and p.var == $1 }
+      elsif (@func == "_Exit")
+        # we must not allow returning tainted exit values
+        @sink_reasons += @preds.find_all { |p| not p.nil? }
+      end
     end
 
+    # if we work with prefixed sinks from outside we assure that only those are marked as sink
     if not @@sink_lines.empty?
       if @@sink_lines.include?(idx+1)
         @sink_reasons += @preds if @sink_reasons.empty? # definitly add some reasons
@@ -175,6 +178,10 @@ class TaintGrindOp
 
   def is_blue?
     return @taint == :blue
+  end
+
+  def is_green?
+    return @taint == :green
   end
   
   def get_src_line
