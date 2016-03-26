@@ -7,7 +7,7 @@ Created on 1 Jul 2014
 import subprocess, threading, errno
 
 class TimedProcess(object):
-    DEFAULT_TIMEOUT = 1.0
+    DEFAULT_TIMEOUT = 2.0
     timeout = DEFAULT_TIMEOUT
     
     def __init__(self, cmd, cwd, timeout=timeout):
