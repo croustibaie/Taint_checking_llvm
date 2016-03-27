@@ -11,15 +11,13 @@ pub enum Taint {
     Green
 }
 
-/**
- * As there might be very many tg nodes floating around it is very important
- * to keep the memory footprint minimal w/o loosing information. Because of that
- * a TgNode only contains the absolutely necessary information needed for the
- * graph search. For convenience one a TgNode is usually wrapped in a TgMetaNode
- * that stores additional information about the node.
- * If performance is necessary this construct allows us to easily loose all
- * irrelevant information to keep the memory footprint small.
- */
+/// As there might be very many tg nodes floating around it is very important
+/// to keep the memory footprint minimal w/o loosing information. Because of that
+/// a TgNode only contains the absolutely necessary information needed for the
+/// graph search. For convenience one a TgNode is usually wrapped in a TgMetaNode
+/// that stores additional information about the node.
+/// If performance is necessary this construct allows us to easily loose all
+/// irrelevant information to keep the memory footprint small.
 pub struct TgNode {
     pub idx: usize, // the index of the line in the taintgrind log
     pub preds: Vec<Option<Rc<TgNode>>>,
@@ -44,6 +42,22 @@ impl TgNode {
                graph: &HashMap<String, Rc<TgNode>>) -> (Option<String>, Rc<TgNode>) {
         let mut node = TgNode { idx: idx, preds: vec![], sink_reasons: vec![], taint: Taint::Green };
 
+        // connect to predecessors + find some sink_reasons
+        let var = node.analyze_taint_flow(tnt_flow, graph);
+        
+        // inherit taint
+        
+        
+        
+        (var, Rc::new(node))
+    }
+
+    /// Analyze the taint flow
+    ///
+    /// Returns the variable that is defined in this node if any
+    fn analyze_taint_flow(&mut self,
+                          tnt_flow: &str,
+                          graph: &HashMap<String, Rc<TgNode>>) -> Option<String> {
         let mut var: Option<String> = None;
 
         lazy_static! {
@@ -65,7 +79,7 @@ impl TgNode {
                         }
 
                         for f in cap.at(3).unwrap().split(", ") {
-                            node.preds.push(graph.get(f).map(|n| n.clone()));
+                            self.preds.push(graph.get(f).map(|n| n.clone()));
                         }
                     } else {
                         // e.g. t78_744 <*- t72_268 (for dereferencing)
@@ -76,7 +90,7 @@ impl TgNode {
                             match graph.get(f) {
                                 Some(n) =>
                                     if n.is_red() {
-                                        node.sink_reasons.push(n.clone());
+                                        self.sink_reasons.push(n.clone());
                                     },
                                 None => {}
                             }
@@ -84,15 +98,12 @@ impl TgNode {
                     },
                 None => // e.g. t54_1741
                     for f in pred.split(", ") {
-                        node.preds.push(graph.get(f).map(|n| n.clone()));
+                        self.preds.push(graph.get(f).map(|n| n.clone()));
                     }
             }
         }
 
-        // inherit taint
-        
-        
-        (var, Rc::new(node))
+        var
     }
 
     pub fn is_sink(&self) -> bool {
