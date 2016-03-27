@@ -324,7 +324,7 @@ class TaintGrindOp
     }
   end
   
-  attr_reader :func, :var, :from, :preds, :sink_reasons, :line, :idx, :taint
+  attr_reader :func, :var, :preds, :sink_reasons, :line, :idx, :taint
 end
 
 ###### PROCESS CLI ARGS ##########

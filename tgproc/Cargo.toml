@@ -5,3 +5,5 @@ authors = ["David Poetzsch-Heffter <davidpoetzsch@web.de>"]
 
 [dependencies]
 argparse = "*"
+lazy_static = "0.1.15"
+regex = "0.1"

@@ -12,7 +12,6 @@ use self::tgnode::TgNode;
 use super::cli::Options;
 
 pub struct Graph<'a> {
-    ops : HashMap<&'a str, Rc<TgNode>>,
     sinks : Vec<Rc<TgNode>>,
     options : &'a Options
 }
@@ -23,8 +22,9 @@ impl<'a> Graph<'a> {
     }
     
     pub fn new(options: &Options) -> Result<Graph> {
+        let mut tg_ops: HashMap<String, Rc<TgNode>> = HashMap::new();
+        
         let mut graph = Graph {
-            ops : HashMap::new(),
             sinks : vec![],
             options: options
         };
@@ -38,15 +38,22 @@ impl<'a> Graph<'a> {
                 continue;
             }
 
-            let tgo = TgNode::new(&l, idx, &graph.ops);
+            let l_split = l.split(" | ");
+            let tnt_flow = l_split.skip(4).next().unwrap();
+            
+            let (var, tgo) = TgNode::new(&tnt_flow, idx, &tg_ops);
 
-            if tgo.is_def() {
-                if graph.ops.contains_key(tgo.var) {
-                    panic!(format!("ERROR: Duplicated definition in lines {} and {}",
-                                   graph.ops.get(tgo.var).unwrap().idx + 1,
-                                   idx+1));
-                }
-                graph.ops.insert(tgo.var, tgo.clone());
+            match var {
+                Some(v) => {
+                    match tg_ops.get(&v) {
+                        Some(op) => panic!(format!("ERROR: Duplicated definition in lines {} and {}",
+                                                   op.idx + 1,
+                                                   idx+1)),
+                        None => {}
+                    }
+                    tg_ops.insert(v, tgo.clone());
+                },
+                None => {}
             }
 
             if tgo.is_sink() {
