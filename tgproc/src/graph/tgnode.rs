@@ -46,8 +46,7 @@ impl TgNode {
         let var = node.analyze_taint_flow(tnt_flow, graph);
         
         // inherit taint
-        
-        
+        node.inherit_taint();
         
         (var, Rc::new(node))
     }
@@ -69,15 +68,11 @@ impl TgNode {
                 Some(cap) =>
                     if cap.at(2).unwrap().is_empty() {
                         // e.g. t54_1741 <- t42_1773, t29_4179
-                        {
-                            // set variable
-                            let vvv = &mut var;
-                            match *vvv {
-                                Some(ref s) => assert!(s == cap.at(1).unwrap()),
-                                None => *vvv = Some(cap.at(1).unwrap().to_string())
-                            }
+                        match var {
+                            Some(ref s) => assert!(s == cap.at(1).unwrap()),
+                            None => var = Some(cap.at(1).unwrap().to_string())
                         }
-
+                        
                         for f in cap.at(3).unwrap().split(", ") {
                             self.preds.push(graph.get(f).map(|n| n.clone()));
                         }
@@ -106,8 +101,33 @@ impl TgNode {
         var
     }
 
+    fn inherit_taint(&mut self) {
+        self.taint = if self.is_source() { Taint::Blue } else { Taint::Green };
+
+        for pred in self.preds.iter() {
+            match *pred {
+                Some(ref p) => {
+                    if p.is_red() {
+                        self.taint = Taint::Red;
+                        break // once we are red we cannot go back anyway
+                    } else if p.is_blue() {
+                        self.taint = Taint::Blue
+                    }
+                },
+                None => {}
+            }
+        }
+    }
+
+    /// A TgNode is a source of taint if it does not have any predecessors
+    /// or sink reasons different from None
+    pub fn is_source(&self) -> bool {
+        // sink reasons are not Options, so there must not be any sink_reasons
+        self.sink_reasons.is_empty() && self.preds.iter().all(|p| p.is_none())
+    }
+
     pub fn is_sink(&self) -> bool {
-        true
+        ! self.sink_reasons.is_empty()
     }
 
     pub fn is_red(&self) -> bool {
