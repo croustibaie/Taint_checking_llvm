@@ -1,0 +1,7 @@
+[package]
+name = "tgproc"
+version = "0.1.0"
+authors = ["David Poetzsch-Heffter <davidpoetzsch@web.de>"]
+
+[dependencies]
+argparse = "*"
