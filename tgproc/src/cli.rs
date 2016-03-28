@@ -1,6 +1,6 @@
 extern crate argparse;
 
-use self::argparse::{ArgumentParser, StoreTrue, StoreFalse, Store, Collect};
+use self::argparse::{ArgumentParser, StoreTrue, StoreFalse, Store, StoreConst, Collect};
 
 pub struct Options {
     pub taintgrind_trace: bool,
@@ -11,7 +11,7 @@ pub struct Options {
     pub unique_locs: bool,
     pub src_only: bool,
     pub color: bool,
-    pub verbose: bool,
+    pub verbosity: u8,
     pub sink_lines: Vec<i32>,
     pub logfile: String
 }
@@ -27,7 +27,7 @@ pub fn parse_opts() -> Options {
         unique_locs: false,
         src_only: false,
         color: true,
-        verbose: false,
+        verbosity: 10,
         sink_lines: vec![],
         logfile: "".to_string()
     };
@@ -38,9 +38,11 @@ pub fn parse_opts() -> Options {
         ap.set_description("This finds traces in the taintgrind output that lead to \
                             dangerous behavior.");
         
-        ap.refer(&mut cli_opts.verbose)
-            .add_option(&["-v", "--verbose"], StoreTrue,
-                        "Verbose mode");
+        ap.refer(&mut cli_opts.verbosity)
+            .add_option(&["-v", "--verbose"], StoreConst(20),
+                        "Verbose mode")
+            .add_option(&["-q", "--quiet"], StoreConst(0),
+                        "Quiet mode");
         
         ap.refer(&mut cli_opts.libs)
             .add_option(&["--libs"], StoreTrue,

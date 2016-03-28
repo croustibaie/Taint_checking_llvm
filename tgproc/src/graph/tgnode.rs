@@ -4,6 +4,10 @@ use std::iter::Filter;
 use std::slice::Iter;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::cmp::PartialEq;
+use std::cmp::Eq;
+use std::hash::Hash;
+use std::hash::Hasher;
 use self::regex::Regex;
 
 #[derive(PartialEq)]
@@ -273,3 +277,17 @@ impl TgNode {
     }
 }
 
+impl PartialEq for TgNode {
+    fn eq(&self, other: &TgNode) -> bool {
+        self.idx == other.idx
+    }
+}
+
+impl Hash for TgNode {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        state.write_usize(self.idx);
+        state.finish();
+    }
+}
+
+impl Eq for TgNode {}
