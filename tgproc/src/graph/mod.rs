@@ -23,6 +23,8 @@ impl<'a> Graph<'a> {
     }
     
     pub fn new(options: &Options) -> Result<Graph> {
+        assert!(options.sink_lines.is_empty(), "Manually setting sink lines not yet implemented");
+        
         let mut tg_ops: TgNodeMap = HashMap::new();
         
         let mut graph = Graph {
