@@ -77,37 +77,34 @@ impl TgNode {
         }
         
         for pred in tnt_flow.split("; ") {
-            match RE_TNT_FLOW.captures(pred) {
-                Some(cap) =>
-                    if cap.at(2).unwrap().is_empty() {
-                        // e.g. t54_1741 <- t42_1773, t29_4179
-                        match self.var {
-                            Some(ref s) => assert!(s == cap.at(1).unwrap()),
-                            None => self.var = Some(cap.at(1).unwrap().to_string())
-                        }
-                        
-                        for f in cap.at(3).unwrap().split(", ") {
-                            self.preds.push(graph.get(f).map(|n| n.clone()));
-                        }
-                    } else {
-                        // e.g. t78_744 <*- t72_268 (for dereferencing)
-                        // or t78_744 <-*- t72_268 (for storing)
-                        // we MUST not dereference or store a red value,
-                        // however this does not count as taintflow
-                        for f in cap.at(3).unwrap().split(", ") {
-                            match graph.get(f) {
-                                Some(n) =>
-                                    if n.is_red() {
-                                        self.sink_reasons.push(n.clone());
-                                    },
-                                None => {}
-                            }
-                        }
-                    },
-                None => // e.g. t54_1741
-                    for f in pred.split(", ") {
+            if let Some(cap) = RE_TNT_FLOW.captures(pred) {
+                if cap.at(2).unwrap().is_empty() {
+                    // e.g. t54_1741 <- t42_1773, t29_4179
+                    match self.var {
+                        Some(ref s) => assert!(s == cap.at(1).unwrap()),
+                        None => self.var = Some(cap.at(1).unwrap().to_string())
+                    }
+                    
+                    for f in cap.at(3).unwrap().split(", ") {
                         self.preds.push(graph.get(f).map(|n| n.clone()));
                     }
+                } else {
+                    // e.g. t78_744 <*- t72_268 (for dereferencing)
+                    // or t78_744 <-*- t72_268 (for storing)
+                    // we MUST not dereference or store a red value,
+                        // however this does not count as taintflow
+                    for f in cap.at(3).unwrap().split(", ") {
+                        if let Some(n) = graph.get(f) {
+                            if n.is_red() {
+                                self.sink_reasons.push(n.clone());
+                            }
+                        }
+                    }
+                }
+            } else { // e.g. t54_1741
+                for f in pred.split(", ") {
+                    self.preds.push(graph.get(f).map(|n| n.clone()));
+                }
             }
         }
     }
@@ -123,97 +120,82 @@ impl TgNode {
         // we cannot get from green to red and we cannot go back from red
         // so further checking is only interesting if we are blue
         if self.is_blue() {
-            match cmd_part.split(" = ").nth(1) {
-                Some(cmd) => {
-                    assert!(cmd_part.split(" = ").count() == 2);
-
-                    if (cmd.starts_with("Mul") ||
-                        cmd.starts_with("Div") ||
-                        cmd.starts_with("Mod") ||
-                        cmd.starts_with("And") ||
-                        cmd.starts_with("Or") ||
-                        cmd.starts_with("Xor") ||
-                        cmd.starts_with("Shl") ||
-                        cmd.starts_with("Sar")) {
+            if let Some(cmd) = cmd_part.split(" = ").nth(1) {
+                assert!(cmd_part.split(" = ").count() == 2);
+                
+                if (cmd.starts_with("Mul") ||
+                    cmd.starts_with("Div") ||
+                    cmd.starts_with("Mod") ||
+                    cmd.starts_with("And") ||
+                    cmd.starts_with("Or") ||
+                    cmd.starts_with("Xor") ||
+                    cmd.starts_with("Shl") ||
+                    cmd.starts_with("Sar")) {
+                    self.taint = Taint::Red;
+                } else if cmd.starts_with("Add") {
+                    let mut ngp = self.preds.iter().filter(|&pred| {
+                        if let Some(ref p) = *pred { ! p.is_green() } else { true }
+                    });
+                    
+                    if ngp.nth(1).is_some() { // at least two blue predecessors
                         self.taint = Taint::Red;
-                    } else if cmd.starts_with("Add") {
-                        let mut ngp = self.preds.iter().filter(|&pred| {
-                            match *pred {
-                                Some(ref p) => ! p.is_green(),
-                                None => true
-                            }
-                        });
-
-                        if ngp.nth(1).is_some() { // at least two blue predecessors
-                            self.taint = Taint::Red;
-                        }
-                    } else if cmd.starts_with("Cmp") {
-                        // because we are blue at least one pred is blue
-                        // if the other one is blue, too, everything is fine and we are green
-                        // if the other one is green nothing is fine and we go red
-                        let all_blue = self.preds.iter().all(|pred| {
-                            match *pred {
-                                Some(ref p) => p.is_blue(),
-                                None => true
-                            }
-                        });
-                        
-                        if all_blue {
-                            self.taint = Taint::Green
-                        } else { // we know that at least one pred is blue because self.is_blue() above
-                            self.taint = Taint::Red
-                        }
-                    } else {
-                        match RE_SUB_CMD.captures(cmd) {
-                            Some(cap) => {
-                                let mut ngp = self.preds.iter().filter(|&pred| {
-                                    match *pred {
-                                        Some(ref p) => ! p.is_green(),
-                                        None => true
-                                    }
-                                });
-                                let ngp0 = ngp.next();
-                                                                
-                                // we allow (blue - green) but not (green - blue) or (blue - blue)
-                                if ngp.next().is_some() {
-                                    // do not allow (blue - blue)
-                                    self.taint = Taint::Red;
-                                } else {
-                                    match ngp0 {
-                                        Some(&Some(ref p)) => {
-                                            let subtrahend = cap.at(1).unwrap();
-                                            
-                                            // this one is a predecessor, so it should have a var set
-                                            assert!(p.var.is_some());
-                                            
-                                            if (p.var.as_ref().unwrap() == subtrahend) {
-                                                self.taint = Taint::Red
-                                            }
-                                        },
-                                        Some(&None) => {
-                                            // here we could have the following commands
-                                            // t3 = Sub undef t2 | | | t3 <- undef       [BLUE]
-                                            // t3 = Sub undef t2 | | | t3 <- undef, t2   [BLUE]
-                                            // t3 = Sub t2 undef | | | t3 <- undef       [RED]
-                                            // t3 = Sub t2 undef | | | t3 <- undef, t2   [RED]
-                                            // where t2 is always green if it carries taint
-                                            // and undef wasn't defined before (is None here)
-                                            // which means that undef carries blue taint by default
-
-                                            // TODO
-                                            panic!("Not implemented");
-                                        },
-                                        None => {} // (green - green), all good
-                                    }
-                                }
-                            },
-                            None => {}
-                        }
                     }
-                },
-                None => {}
+                } else if cmd.starts_with("Cmp") {
+                    // because we are blue at least one pred is blue
+                    // if the other one is blue, too, everything is fine and we are green
+                    // if the other one is green nothing is fine and we go red
+                    let all_blue = self.preds.iter().all(|pred| {
+                        if let Some(ref p) = *pred { p.is_blue() } else { true }
+                    });
+                    
+                    if all_blue {
+                        self.taint = Taint::Green
+                    } else { // we know that at least one pred is blue because self.is_blue() above
+                        self.taint = Taint::Red
+                    }
+                } else {
+                    if let Some(cap) = RE_SUB_CMD.captures(cmd) {
+                        let mut ngp = self.preds.iter().filter(|&pred| {
+                            if let Some(ref p) = *pred { ! p.is_green() } else { true }
+                        });
+                        let ngp0 = ngp.next();
+                        
+                        // we allow (blue - green) but not (green - blue) or (blue - blue)
+                        if ngp.next().is_some() {
+                            // do not allow (blue - blue)
+                            self.taint = Taint::Red;
+                        } else {
+                            match ngp0 {
+                                Some(&Some(ref p)) => {
+                                    let subtrahend = cap.at(1).unwrap();
+                                    
+                                    // this one is a predecessor, so it should have a var set
+                                    assert!(p.var.is_some());
+                                    
+                                    if (p.var.as_ref().unwrap() == subtrahend) {
+                                        self.taint = Taint::Red
+                                    }
+                                },
+                                Some(&None) => {
+                                    // here we could have the following commands
+                                    // t3 = Sub undef t2 | | | t3 <- undef       [BLUE]
+                                    // t3 = Sub undef t2 | | | t3 <- undef, t2   [BLUE]
+                                    // t3 = Sub t2 undef | | | t3 <- undef       [RED]
+                                    // t3 = Sub t2 undef | | | t3 <- undef, t2   [RED]
+                                    // where t2 is always green if it carries taint
+                                    // and undef wasn't defined before (is None here)
+                                    // which means that undef carries blue taint by default
+                                    
+                                    // TODO
+                                    panic!("Not implemented");
+                                },
+                                None => {} // (green - green), all good
+                            }
+                        }
+                    } // end if re matches
+                }
             }
-        }
+        } // end if self.is_blue
     }
 
     fn calc_sink(&mut self, loc_part: &str, cmd_part: &str) {
@@ -228,31 +210,25 @@ impl TgNode {
             if loc_part.contains(" _Exit ") {
                 // we must not allow returning tainted exit values
                 for pred in self.preds.iter() {
-                    match *pred {
-                        Some(ref p) => self.sink_reasons.push(p.clone()),
-                        None => {}
+                    if let Some(ref p) = *pred {
+                        self.sink_reasons.push(p.clone())
                     }
                 }
             } else {
-                match RE_IF_CMD.captures(cmd_part).or_else(|| RE_TERNARY_CMD.captures(cmd_part)) {
-                    Some(cap) => {
-                        // we can safely allow blue taint to reach a condition because
-                        // it is either 0 (null) in all variants or a valid pointer (-> true)
-                        for pred in self.preds.iter() {
-                            match *pred {
-                                Some(ref p) => {
-                                    // this one is a predecessor, so it should have a var set
-                                    assert!(p.var.is_some());
-                                    
-                                    if p.is_red() && (p.var.as_ref().unwrap() == cap.at(1).unwrap()) {
-                                        self.sink_reasons.push(p.clone())
-                                    }
-                                }
-                                None => {}
+                let match_ = RE_IF_CMD.captures(cmd_part).or_else(|| RE_TERNARY_CMD.captures(cmd_part));
+                if let Some(cap) = match_ {
+                    // we can safely allow blue taint to reach a condition because
+                    // it is either 0 (null) in all variants or a valid pointer (-> true)
+                    for pred in self.preds.iter() {
+                        if let Some(ref p) = *pred {
+                            // this one is a predecessor, so it should have a var set
+                            assert!(p.var.is_some());
+                            
+                            if p.is_red() && (p.var.as_ref().unwrap() == cap.at(1).unwrap()) {
+                                self.sink_reasons.push(p.clone())
                             }
                         }
-                    },
-                    None => {}
+                    }
                 }
             }
         }
@@ -262,16 +238,13 @@ impl TgNode {
         self.taint = if self.is_source() { Taint::Blue } else { Taint::Green };
 
         for pred in self.preds.iter() {
-            match *pred {
-                Some(ref p) => {
-                    if p.is_red() {
-                        self.taint = Taint::Red;
-                        break // once we are red we cannot go back anyway
-                    } else if p.is_blue() {
-                        self.taint = Taint::Blue
-                    }
-                },
-                None => {}
+            if let Some(ref p) = *pred {
+                if p.is_red() {
+                    self.taint = Taint::Red;
+                    break // once we are red we cannot go back anyway
+                } else if p.is_blue() {
+                    self.taint = Taint::Blue
+                }
             }
         }
     }
