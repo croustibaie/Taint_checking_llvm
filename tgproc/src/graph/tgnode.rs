@@ -1,5 +1,7 @@
 extern crate regex;
 
+use std::iter::Filter;
+use std::slice::Iter;
 use std::collections::HashMap;
 use std::rc::Rc;
 use self::regex::Regex;
@@ -20,6 +22,7 @@ pub enum Taint {
 /// irrelevant information to keep the memory footprint small.
 pub struct TgNode {
     pub idx: usize, // the index of the line in the taintgrind log
+    pub var: Option<String>,
     pub preds: Vec<Option<Rc<TgNode>>>,
     pub sink_reasons: Vec<Rc<TgNode>>,
     pub taint: Taint
@@ -36,19 +39,30 @@ pub struct TgMetaNode {
     lineno: usize
 }
 
+pub type TgNodeMap = HashMap<String, Rc<TgNode>>;
+
 impl TgNode {
-    pub fn new(tnt_flow: &str,
+    pub fn new(cmd_part: &str,
+               tnt_flow: &str,
                idx: usize,
-               graph: &HashMap<String, Rc<TgNode>>) -> (Option<String>, Rc<TgNode>) {
-        let mut node = TgNode { idx: idx, preds: vec![], sink_reasons: vec![], taint: Taint::Green };
+               graph: &TgNodeMap) -> Rc<TgNode> {
+        let mut node = TgNode {
+            idx: idx,
+            var: None,
+            preds: vec![],
+            sink_reasons: vec![],
+            taint: Taint::Green
+        };
 
         // connect to predecessors + find some sink_reasons
-        let var = node.analyze_taint_flow(tnt_flow, graph);
+        node.analyze_taint_flow(tnt_flow, graph);
         
-        // inherit taint
-        node.inherit_taint();
+        // calculate the taint
+        node.calc_taint(cmd_part);
+
         
-        (var, Rc::new(node))
+        
+        Rc::new(node)
     }
 
     /// Analyze the taint flow
@@ -56,9 +70,7 @@ impl TgNode {
     /// Returns the variable that is defined in this node if any
     fn analyze_taint_flow(&mut self,
                           tnt_flow: &str,
-                          graph: &HashMap<String, Rc<TgNode>>) -> Option<String> {
-        let mut var: Option<String> = None;
-
+                          graph: &TgNodeMap) {
         lazy_static! {
             static ref RE_TNT_FLOW: Regex = Regex::new(r"^(.+?) <-?(\*?)- (.+?)$").unwrap();
         }
@@ -68,9 +80,9 @@ impl TgNode {
                 Some(cap) =>
                     if cap.at(2).unwrap().is_empty() {
                         // e.g. t54_1741 <- t42_1773, t29_4179
-                        match var {
+                        match self.var {
                             Some(ref s) => assert!(s == cap.at(1).unwrap()),
-                            None => var = Some(cap.at(1).unwrap().to_string())
+                            None => self.var = Some(cap.at(1).unwrap().to_string())
                         }
                         
                         for f in cap.at(3).unwrap().split(", ") {
@@ -97,8 +109,110 @@ impl TgNode {
                     }
             }
         }
+    }
 
-        var
+    #[allow(unused_parens)]
+    fn calc_taint(&mut self, cmd_part: &str) {
+        self.inherit_taint();
+
+        lazy_static! {
+            static ref RE_SUB_CMD: Regex = Regex::new(r"^Sub\d\d? .+ (.+)").unwrap();
+        }
+                
+        // we cannot get from green to red and we cannot go back from red
+        // so further checking is only interesting if we are blue
+        if self.is_blue() {
+            match cmd_part.split(" = ").nth(1) {
+                Some(cmd) => {
+                    assert!(cmd_part.split(" = ").count() == 2);
+
+                    if (cmd.starts_with("Mul") ||
+                        cmd.starts_with("Div") ||
+                        cmd.starts_with("Mod") ||
+                        cmd.starts_with("And") ||
+                        cmd.starts_with("Or") ||
+                        cmd.starts_with("Xor") ||
+                        cmd.starts_with("Shl") ||
+                        cmd.starts_with("Sar")) {
+                        self.taint = Taint::Red;
+                    } else if cmd.starts_with("Add") {
+                        let mut ngp = self.preds.iter().filter(|&pred| {
+                            match *pred {
+                                Some(ref p) => ! p.is_green(),
+                                None => true
+                            }
+                        });
+
+                        if ngp.nth(1).is_some() { // at least two blue predecessors
+                            self.taint = Taint::Red;
+                        }
+                    } else if cmd.starts_with("Cmp") {
+                        // because we are blue at least one pred is blue
+                        // if the other one is blue, too, everything is fine and we are green
+                        // if the other one is green nothing is fine and we go red
+                        let all_blue = self.preds.iter().all(|pred| {
+                            match *pred {
+                                Some(ref p) => p.is_blue(),
+                                None => true
+                            }
+                        });
+                        
+                        if all_blue {
+                            self.taint = Taint::Green
+                        } else { // we know that at least one pred is blue because self.is_blue() above
+                            self.taint = Taint::Red
+                        }
+                    } else {
+                        match RE_SUB_CMD.captures(cmd) {
+                            Some(cap) => {
+                                let mut ngp = self.preds.iter().filter(|&pred| {
+                                    match *pred {
+                                        Some(ref p) => ! p.is_green(),
+                                        None => true
+                                    }
+                                });
+                                let ngp0 = ngp.next();
+                                                                
+                                // we allow (blue - green) but not (green - blue) or (blue - blue)
+                                if ngp.next().is_some() {
+                                    // do not allow (blue - blue)
+                                    self.taint = Taint::Red;
+                                } else {
+                                    match ngp0 {
+                                        Some(&Some(ref p)) => {
+                                            let subtrahend = cap.at(1).unwrap();
+                                            
+                                            // this one is a predecessor, so it should have a var set
+                                            assert!(p.var.is_some());
+                                            
+                                            if (p.var.as_ref().unwrap() == subtrahend) {
+                                                self.taint = Taint::Red
+                                            }
+                                        },
+                                        Some(&None) => {
+                                            // here we could have the following commands
+                                            // t3 = Sub undef t2 | | | t3 <- undef       [BLUE]
+                                            // t3 = Sub undef t2 | | | t3 <- undef, t2   [BLUE]
+                                            // t3 = Sub t2 undef | | | t3 <- undef       [RED]
+                                            // t3 = Sub t2 undef | | | t3 <- undef, t2   [RED]
+                                            // where t2 is always green if it carries taint
+                                            // and undef wasn't defined before (is None here)
+                                            // which means that undef carries blue taint by default
+
+                                            // TODO
+                                            panic!("Not implemented");
+                                        },
+                                        None => {} // (green - green), all good
+                                    }
+                                }
+                            },
+                            None => {}
+                        }
+                    }
+                },
+                None => {}
+            }
+        }
     }
 
     fn inherit_taint(&mut self) {

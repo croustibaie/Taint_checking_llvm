@@ -9,6 +9,7 @@ use std::io::Result;
 use std::rc::Rc;
 
 use self::tgnode::TgNode;
+use self::tgnode::TgNodeMap;
 use super::cli::Options;
 
 pub struct Graph<'a> {
@@ -22,7 +23,7 @@ impl<'a> Graph<'a> {
     }
     
     pub fn new(options: &Options) -> Result<Graph> {
-        let mut tg_ops: HashMap<String, Rc<TgNode>> = HashMap::new();
+        let mut tg_ops: TgNodeMap = HashMap::new();
         
         let mut graph = Graph {
             sinks : vec![],
@@ -38,20 +39,22 @@ impl<'a> Graph<'a> {
                 continue;
             }
 
-            let l_split = l.split(" | ");
-            let tnt_flow = l_split.skip(4).next().unwrap();
+            let mut l_split = l.split(" | ");
+            let cmd_part = l_split.nth(1).unwrap();
+            let tnt_flow = l_split.nth(2).unwrap();
             
-            let (var, tgo) = TgNode::new(&tnt_flow, idx, &tg_ops);
+            let tgo: Rc<TgNode> = TgNode::new(&cmd_part, &tnt_flow, idx, &tg_ops);
 
-            match var {
-                Some(v) => {
-                    match tg_ops.get(&v) {
+            match tgo.var {
+                Some(ref v) => {
+                    let vx: &str = v;
+                    match tg_ops.get(vx) {
                         Some(op) => panic!(format!("ERROR: Duplicated definition in lines {} and {}",
                                                    op.idx + 1,
                                                    idx+1)),
                         None => {}
                     }
-                    tg_ops.insert(v, tgo.clone());
+                    tg_ops.insert(vx.to_string(), tgo.clone());
                 },
                 None => {}
             }
