@@ -7,7 +7,6 @@ use std::cmp::Ordering;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::fs::File;
-use std::path::Path;
 use std::io::Result;
 use std::rc::Rc;
 
@@ -79,7 +78,7 @@ impl<'a> Graph<'a> {
         Ok(graph)
     }
 
-    pub fn get_traces(&self, sink: &Rc<TgNode>) {
+    pub fn get_traces<'l>(&self, sink: &'l Rc<TgNode>) -> Vec<Vec<&'l Rc<TgNode>>> {
         let print_detection = self.options.verbosity >= PRINT_DETECTION_VERBOSITY;
         
         // we can't use recursion here because the graph can be VERY huge and the
@@ -137,11 +136,26 @@ impl<'a> Graph<'a> {
                 }
 
                 for pred in preds.iter() {
-                    let x : &Rc<TgNode> = pred;
                     queue.push_back(pred);
                     detected.insert(pred, Some(op)); // link from where we found this one
                 }
             }
         }
+
+        let mut paths = vec![];
+
+        for src in sources {
+            let mut trace = vec![];
+            let mut cur_opt : &Option<&Rc<TgNode>> = &Some(src);
+
+            while let Some(cur) = *cur_opt {
+                trace.push(cur);
+                cur_opt = detected.get(cur).unwrap();
+            }
+
+            paths.push(trace);
+        }
+
+        paths
     }
 }

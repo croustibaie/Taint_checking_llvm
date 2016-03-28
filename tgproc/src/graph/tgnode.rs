@@ -1,7 +1,5 @@
 extern crate regex;
 
-use std::iter::Filter;
-use std::slice::Iter;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cmp::PartialEq;
@@ -32,7 +30,7 @@ pub struct TgNode {
     pub taint: Taint
 }
 
-pub struct TgMetaNode {
+/*pub struct TgMetaNode {
     pub tgnode: TgNode,
 
     pub line: String,
@@ -41,7 +39,7 @@ pub struct TgMetaNode {
     addr: String,
     file: String,
     lineno: usize
-}
+}*/
 
 pub type TgNodeMap = HashMap<String, Rc<TgNode>>;
 
