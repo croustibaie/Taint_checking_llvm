@@ -40,10 +40,11 @@ impl<'a> Graph<'a> {
             }
 
             let mut l_split = l.split(" | ");
-            let cmd_part = l_split.nth(1).unwrap();
+            let loc_part = l_split.next().unwrap();
+            let cmd_part = l_split.next().unwrap();
             let tnt_flow = l_split.nth(2).unwrap();
             
-            let tgo: Rc<TgNode> = TgNode::new(&cmd_part, &tnt_flow, idx, &tg_ops);
+            let tgo: Rc<TgNode> = TgNode::new(&loc_part, &cmd_part, &tnt_flow, idx, &tg_ops);
 
             match tgo.var {
                 Some(ref v) => {

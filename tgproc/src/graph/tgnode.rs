@@ -42,7 +42,8 @@ pub struct TgMetaNode {
 pub type TgNodeMap = HashMap<String, Rc<TgNode>>;
 
 impl TgNode {
-    pub fn new(cmd_part: &str,
+    pub fn new(loc_part: &str,
+               cmd_part: &str,
                tnt_flow: &str,
                idx: usize,
                graph: &TgNodeMap) -> Rc<TgNode> {
@@ -60,7 +61,7 @@ impl TgNode {
         // calculate the taint
         node.calc_taint(cmd_part);
 
-        
+        node.calc_sink(loc_part, cmd_part);
         
         Rc::new(node)
     }
@@ -211,6 +212,48 @@ impl TgNode {
                     }
                 },
                 None => {}
+            }
+        }
+    }
+
+    fn calc_sink(&mut self, loc_part: &str, cmd_part: &str) {
+        lazy_static! {
+            static ref RE_IF_CMD: Regex = Regex::new(r"^IF ([\w_]+) ").unwrap();
+            static ref RE_TERNARY_CMD: Regex = Regex::new(r"[\w_]+ = ([\w_]+) \? [\w_]+ : [\w_]+").unwrap();
+        }
+        
+        // Is this a sink? Let's see...
+        // note the LOAD/STORE with red taint is already handled in analyze_taint_flow
+        if ! self.is_green() {
+            if loc_part.contains(" _Exit ") {
+                // we must not allow returning tainted exit values
+                for pred in self.preds.iter() {
+                    match *pred {
+                        Some(ref p) => self.sink_reasons.push(p.clone()),
+                        None => {}
+                    }
+                }
+            } else {
+                match RE_IF_CMD.captures(cmd_part).or_else(|| RE_TERNARY_CMD.captures(cmd_part)) {
+                    Some(cap) => {
+                        // we can safely allow blue taint to reach a condition because
+                        // it is either 0 (null) in all variants or a valid pointer (-> true)
+                        for pred in self.preds.iter() {
+                            match *pred {
+                                Some(ref p) => {
+                                    // this one is a predecessor, so it should have a var set
+                                    assert!(p.var.is_some());
+                                    
+                                    if p.is_red() && (p.var.as_ref().unwrap() == cap.at(1).unwrap()) {
+                                        self.sink_reasons.push(p.clone())
+                                    }
+                                }
+                                None => {}
+                            }
+                        }
+                    },
+                    None => {}
+                }
             }
         }
     }
