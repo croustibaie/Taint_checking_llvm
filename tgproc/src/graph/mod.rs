@@ -114,7 +114,7 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
         Ok(graph)
     }
 
-    pub fn get_traces<'l>(&self, sink: &'l Rc<TgNode>) -> Vec<Vec<&'l Rc<TgNode>>> {
+    pub fn get_traces<'l>(&self, sink: &'l TgNode) -> Vec<Vec<&'l TgNode>> {
         let print_detection = self.options.verbosity >= PRINT_DETECTION_VERBOSITY;
         
         // we can't use recursion here because the graph can be VERY huge and the
@@ -122,11 +122,11 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
         let mut sources = vec![];
 
         // all nodes that still need to be processed
-        let mut queue: VecDeque<&Rc<TgNode>> = VecDeque::new();
+        let mut queue: VecDeque<&TgNode> = VecDeque::new();
         queue.push_back(sink);
 
         // a map from detected nodes to their successors
-        let mut detected : HashMap<&Rc<TgNode>, Option<&Rc<TgNode>>> = HashMap::new();
+        let mut detected : HashMap<&TgNode, Option<&TgNode>> = HashMap::new();
         detected.insert(sink, None);
 
         while let Some(op) = queue.pop_front() {
@@ -145,14 +145,14 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
                 if print_detection { print!("found source") }
                 sources.push(op);
             } else {
-                let all_preds : Vec<&Rc<TgNode>> = if op.is_sink() {
-                    op.sink_reasons.iter().collect()
+                let all_preds : Vec<&TgNode> = if op.is_sink() {
+                    op.sink_reasons.iter().map(|pred| pred.as_ref()).collect()
                 } else {
-                    op.preds.iter().filter_map(|pred| pred.as_ref()).collect()
+                    op.preds.iter().filter_map(|pred| pred.as_ref().map(|p| p.as_ref())).collect()
                 };
 
                 // get all preds that are Some, non-green and haven't been detected yet
-                let (mut preds, skipped) : (Vec<&Rc<TgNode>>, Vec<&Rc<TgNode>>) = all_preds.iter()
+                let (mut preds, skipped) : (Vec<&TgNode>, Vec<&TgNode>) = all_preds.iter()
                     .partition(|&p| (! p.is_green()) && (! detected.contains_key(p)));
 
                 // put the red ones first
@@ -182,7 +182,7 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
 
         for src in sources {
             let mut trace = vec![];
-            let mut cur_opt : &Option<&Rc<TgNode>> = &Some(src);
+            let mut cur_opt : &Option<&TgNode> = &Some(src);
 
             while let Some(cur) = *cur_opt {
                 trace.push(cur);
