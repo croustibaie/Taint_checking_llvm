@@ -73,6 +73,15 @@ impl<'a> Graph<'a> {
             if tgo.is_sink() {
                 graph.sinks.push(tgo.clone());
             }
+
+            if options.mark_taint {
+                print!("{:8}   ", tgo.idx+1);
+                if options.color {
+                    println!("{}", tgo.taint.color(&l));
+                } else {
+                    println!("[{}]  {}", tgo.taint.abbrv(), l);
+                }
+            }
         };
 
         Ok(graph)

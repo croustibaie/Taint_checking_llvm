@@ -7,3 +7,23 @@ authors = ["David Poetzsch-Heffter <davidpoetzsch@web.de>"]
 argparse = "*"
 lazy_static = "0.1.15"
 regex = "0.1"
+ansi_term = "0.7"
+
+# The development profile, used for `cargo build`.
+[profile.dev]
+opt-level = 0      # controls the `--opt-level` the compiler builds with
+debug = true       # controls whether the compiler passes `-g`
+rpath = false      # controls whether the compiler passes `-C rpath`
+lto = false        # controls `-C lto` for binaries and staticlibs
+debug-assertions = true # controls whether debug assertions are enabled
+codegen-units = 1  # controls whether the compiler passes `-C codegen-units`
+                   # `codegen-units` is ignored when `lto = true`
+
+# The release profile, used for `cargo build --release`.
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = false
+debug-assertions = false
+codegen-units = 1

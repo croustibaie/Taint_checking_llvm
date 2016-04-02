@@ -7,12 +7,32 @@ use std::cmp::Eq;
 use std::hash::Hash;
 use std::hash::Hasher;
 use self::regex::Regex;
+use ansi_term::Colour;
+use ansi_term::ANSIString;
 
 #[derive(PartialEq)]
 pub enum Taint {
     Red,
     Blue,
     Green
+}
+
+impl Taint {
+    pub fn color<'a>(&self, s : &'a str) -> ANSIString<'a> {
+        match *self {
+            Taint::Red => Colour::Red.paint(s),
+            Taint::Blue => Colour::Blue.paint(s),
+            Taint::Green => Colour::Green.paint(s)
+        }
+    }
+
+    pub fn abbrv(&self) -> &str {
+        match *self {
+            Taint::Red => "R",
+            Taint::Blue => "B",
+            Taint::Green => "G"
+        }
+    }
 }
 
 /// As there might be very many tg nodes floating around it is very important

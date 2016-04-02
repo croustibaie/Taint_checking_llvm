@@ -1,4 +1,5 @@
 #[macro_use] extern crate lazy_static;
+extern crate ansi_term;
 
 mod cli;
 mod graph;
