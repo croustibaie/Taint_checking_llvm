@@ -1,4 +1,5 @@
 mod tgnode;
+pub mod meta;
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -9,31 +10,56 @@ use std::io::BufRead;
 use std::fs::File;
 use std::io::Result;
 use std::rc::Rc;
+use ansi_term::Colour;
 
 use self::tgnode::TgNode;
 use self::tgnode::TgNodeMap;
+use self::meta::TgMetaDb;
+use self::meta::TgMetaNode;
 use super::cli::Options;
 
 const PRINT_DETECTION_VERBOSITY: u8 = 20;
 
-pub struct Graph<'a> {
-    sinks : Vec<Rc<TgNode>>,
+pub struct Graph<'a, T: TgMetaDb> {
+    pub sinks : Vec<Rc<TgNode>>,
+    meta : T,
     options : &'a Options,
-    idxwidth : usize
+    idxwidth : usize,
 }
 
-impl<'a> Graph<'a> {
-    fn is_tg_op_line(line: &str) -> bool {
-        line.split(" | ").count() == 5
+struct LineParts<'a> {
+    loc : &'a str,
+    cmd : &'a str,
+    tnt_flow : &'a str
+}
+
+impl<'a> LineParts<'a> {
+    fn new(line: &'a str) -> Option<LineParts<'a>> {
+        let mut l_split = line.split(" | ");
+
+        let loc_part = l_split.next();
+        let cmd_part = l_split.next();
+        let tnt_flow = l_split.nth(2);
+
+        tnt_flow.map(|flow| {
+            LineParts {
+                loc: loc_part.unwrap(),
+                cmd: cmd_part.unwrap(),
+                tnt_flow: flow
+            }
+        })
     }
-    
-    pub fn new(options: &Options) -> Result<Graph> {
+}
+
+impl<'a, T: TgMetaDb> Graph<'a, T> {
+    pub fn new(options: &Options) -> Result<Graph<T>> {
         assert!(options.sink_lines.is_empty(), "Manually setting sink lines not yet implemented");
         
         let mut tg_ops: TgNodeMap = HashMap::new();
         
         let mut graph = Graph {
             sinks : vec![],
+            meta : T::new(),
             options: options,
             idxwidth: 8
         };
@@ -45,44 +71,45 @@ impl<'a> Graph<'a> {
             
             let l : String = line.unwrap();
 
-            if ! Graph::is_tg_op_line(&l) {
-                continue;
-            }
+            if let Some(lparts) = LineParts::new(&l) {
+                let tgo: Rc<TgNode> = TgNode::new(lparts.loc,
+                                              lparts.cmd,
+                                              lparts.tnt_flow,
+                                              idx,
+                                              &tg_ops);
 
-            let mut l_split = l.split(" | ");
-            let loc_part = l_split.next().unwrap();
-            let cmd_part = l_split.next().unwrap();
-            let tnt_flow = l_split.nth(2).unwrap();
-            
-            let tgo: Rc<TgNode> = TgNode::new(&loc_part, &cmd_part, &tnt_flow, idx, &tg_ops);
-
-            match tgo.var {
-                Some(ref v) => {
+                let mut kept = false;
+                
+                if let Some(ref v) = tgo.var {
                     let vx: &str = v;
-                    match tg_ops.get(vx) {
-                        Some(op) => panic!(format!("ERROR: Duplicated definition in lines {} and {}",
-                                                   op.idx + 1,
-                                                   idx+1)),
-                        None => {}
+                    if let Some(op) = tg_ops.get(vx) {
+                        panic!(format!("ERROR: Duplicated definition in lines {} and {}",
+                                       op.idx + 1,
+                                       idx+1))
                     }
                     tg_ops.insert(vx.to_string(), tgo.clone());
-                },
-                None => {}
-            }
-
-            if tgo.is_sink() {
-                graph.sinks.push(tgo.clone());
-            }
-
-            if options.mark_taint {
-                print!("{:8}   ", tgo.idx+1);
-                if options.color {
-                    println!("{}", tgo.taint.color(&l));
-                } else {
-                    println!("[{}]  {}", tgo.taint.abbrv(), l);
+                    kept = true;
+                }
+                
+                if tgo.is_sink() {
+                    graph.sinks.push(tgo.clone());
+                    kept = true;
+                }
+                
+                if options.mark_taint {
+                    print!("{:8}   ", tgo.idx+1);
+                    if options.color {
+                        println!("{}", tgo.taint.color(&l));
+                    } else {
+                        println!("[{}]  {}", tgo.taint.abbrv(), l);
+                    }
+                }
+                
+                if kept {
+                    graph.meta.insert(idx, l.clone(), lparts.loc);
                 }
             }
-        };
+        }
 
         Ok(graph)
     }
@@ -166,5 +193,41 @@ impl<'a> Graph<'a> {
         }
 
         paths
+    }
+
+    pub fn print_traces_of(&self, sink: &TgNode) {
+        
+    }
+
+    pub fn print_traces(&self) {
+        for (sidx,sink) in self.sinks.iter().enumerate() {
+            // separate each sink
+            if sidx > 0 {
+                let sep = "================================================================================";
+                if self.options.color {
+                    println!("{}", Colour::Green.paint(sep));
+                } else {
+                    println!("{}", sep);
+                }
+            }
+
+            /*for (tidx,trace) in self.get_traces(sink) {
+                // separate each source
+                if tidx > 0 {
+                    let sep = "--------------------------------------------------------------------------------";
+                    if self.options.color {
+                        println!("{}", Colour::Yellow.paint(sep));
+                    } else {
+                        println!("{}", sep);
+                    }
+                }
+
+                println!(">>>> The origin of the taint should be just here <<<<");
+
+                if self.options.src_only {
+                    //TODO println!();
+                }
+            }*/
+        }
     }
 }

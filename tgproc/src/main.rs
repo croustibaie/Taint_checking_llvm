@@ -6,9 +6,10 @@ mod graph;
 
 use cli::parse_opts;
 use graph::Graph;
+use graph::meta::SimpleMetaDB;
 
 fn main() {
     let cli_opts = parse_opts();
 
-    let graph = Graph::new(&cli_opts);
+    let graph = Graph::<SimpleMetaDB>::new(&cli_opts);
 }

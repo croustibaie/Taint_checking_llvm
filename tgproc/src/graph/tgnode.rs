@@ -50,17 +50,6 @@ pub struct TgNode {
     pub taint: Taint
 }
 
-/*pub struct TgMetaNode {
-    pub tgnode: TgNode,
-
-    pub line: String,
-    pub func: String,
-
-    addr: String,
-    file: String,
-    lineno: usize
-}*/
-
 pub type TgNodeMap = HashMap<String, Rc<TgNode>>;
 
 impl TgNode {
