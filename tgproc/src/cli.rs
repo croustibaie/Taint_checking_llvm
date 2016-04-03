@@ -12,7 +12,7 @@ pub struct Options {
     pub src_only: bool,
     pub color: bool,
     pub verbosity: u8,
-    pub sink_lines: Vec<i32>,
+    pub sink_lines: Vec<usize>,
     pub logfile: String
 }
 

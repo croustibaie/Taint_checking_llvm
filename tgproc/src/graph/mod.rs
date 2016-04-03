@@ -55,8 +55,6 @@ impl<'a> LineParts<'a> {
 impl Graph {
     #[allow(unused_parens)]
     pub fn new<T: TgMetaDb>(options: Options, mut meta_db: Option<&mut T>) -> Result<Graph> {
-        assert!(options.sink_lines.is_empty(), "Manually setting sink lines not yet implemented");
-        
         let mut tg_ops: TgNodeMap = HashMap::new();
         let mut locations = HashSet::new();
         
@@ -74,7 +72,7 @@ impl Graph {
             let l : String = line.unwrap();
 
             if let Some(lparts) = LineParts::new(&l) {
-                let tgo: Rc<TgNode> = TgNode::new(lparts.loc,
+                let mut tgo: Rc<TgNode> = TgNode::new(lparts.loc,
                                                   lparts.cmd,
                                                   lparts.tnt_flow,
                                                   idx,
@@ -82,7 +80,26 @@ impl Graph {
                 let meta_node = TgMetaNode::new(l.clone(), lparts.loc);
                 
                 let mut kept = false;
-                                
+
+                // if the sinks were set manually we have to fix the reasons
+                if ! graph.options.sink_lines.is_empty() {
+                    let inc_idx = idx+1;
+                    
+                    if graph.options.sink_lines.contains(&inc_idx) {
+                        if ! tgo.is_sink() {
+                            let reasons = tgo.preds
+                                .iter()
+                                .filter_map(|p| p.clone())
+                                .collect::<Vec<Rc<TgNode>>>();
+                            Rc::get_mut(&mut tgo).unwrap().sink_reasons.extend_from_slice(reasons.as_slice())
+                        }
+                    } else {
+                        let sr: &mut Vec<Rc<TgNode>> = &mut Rc::get_mut(&mut tgo).unwrap().sink_reasons;
+                        
+                        sr.clear()
+                    }
+                }
+                
                 if let Some(ref v) = tgo.var {
                     if let Some(op) = tg_ops.get(v.as_str()) {
                         panic!(format!("ERROR: Duplicated definition in lines {} and {}",
