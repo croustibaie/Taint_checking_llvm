@@ -19,7 +19,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use self::regex::Regex;
 use self::walkdir::WalkDir;
-use self::walkdir::WalkDirIterator;
 
 use super::tgnode::TgNode;
 
@@ -79,6 +78,7 @@ impl SrcLoc {
         u64::from_str_radix(&addr[2..], 16).map(|a| SrcLoc::new_u64(a, file, lineno))
     }
 
+    #[allow(unused_parens)]
     pub fn complete_info(&mut self, debug_db: &mut DebugInfoDb) {
         if self.lineno.is_none() {
             let (ref file, lineno) = *debug_db.addr2srcloc(&self.file, self.addr);
@@ -93,17 +93,15 @@ impl SrcLoc {
             let filepath = Path::new(&self.file);
             if ! filepath.exists() {
                 let basename = filepath.file_name().unwrap();
-                
-                let walker = WalkDir::new(".").into_iter().filter_entry(|entry| {
-                    entry.path().to_str().map(|s| s.ends_with(&self.file)).unwrap_or(false) &&
-                    entry.file_name() == basename
-                });
-                
-                for entry in walker.filter_map(|e| e.ok()) {
-                    if let Some(line) = self.load_src_line_from(entry.path()) {
-                        src_line = Some(line);
-                        file = Some(entry.path().to_str().unwrap().to_string());
-                        break;
+
+                for entry in WalkDir::new(".").into_iter().filter_map(|e| e.ok()) {
+                    if (entry.path().to_str().map_or(false, |s| s.ends_with(&self.file)) &&
+                        entry.file_name() == basename) {
+                            if let Some(line) = self.load_src_line_from(entry.path()) {
+                                src_line = Some(line);
+                                file = Some(entry.path().to_str().unwrap().to_string());
+                                break;
+                            }
                     }
                 }
             } else {
