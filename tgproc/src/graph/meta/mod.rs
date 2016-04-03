@@ -22,14 +22,14 @@ use self::walkdir::WalkDir;
 
 use super::tgnode::TgNode;
 
-pub struct DebugInfoDb(HashMap<String, HashMap<u64, (String, usize)>>);
+pub struct DebugInfoDb(HashMap<String, HashMap<u64, Option<(String, usize)>>>);
 
 impl DebugInfoDb {
     pub fn new() -> DebugInfoDb {
         DebugInfoDb(HashMap::new())
     }
     
-    fn addr2srcloc(&mut self, binary: &str, addr: u64) -> &(String, usize) {
+    fn addr2srcloc(&mut self, binary: &str, addr: u64) -> &Option<(String, usize)> {
         let DebugInfoDb(ref mut bin_map) = *self;
         
         if ! bin_map.contains_key(binary) {
@@ -49,8 +49,12 @@ impl DebugInfoDb {
             let output_str = String::from_utf8(output.stdout).unwrap();
             let mut out_split = output_str.split(":");
             let file = out_split.next().unwrap().to_string();
-            let lineno = out_split.next().unwrap().trim().parse::<usize>().unwrap();
-            addr_map.insert(addr, (file, lineno));
+            
+            if let Ok(lineno) = out_split.next().unwrap().trim().parse::<usize>() {
+                addr_map.insert(addr, Some((file, lineno)));
+            } else {
+                addr_map.insert(addr, None);
+            }
         }
 
         addr_map.get(&addr).unwrap()
@@ -81,9 +85,10 @@ impl SrcLoc {
     #[allow(unused_parens)]
     pub fn complete_info(&mut self, debug_db: &mut DebugInfoDb) {
         if self.lineno.is_none() {
-            let (ref file, lineno) = *debug_db.addr2srcloc(&self.file, self.addr);
-            self.file = file.clone();
-            self.lineno = Some(lineno);
+            if let Some((ref file, lineno)) = *debug_db.addr2srcloc(&self.file, self.addr) {
+                self.file = file.clone();
+                self.lineno = Some(lineno);
+            }
         }
 
         let mut src_line = None;
@@ -165,7 +170,8 @@ impl Display for TgMetaNode {
             }
         }
 
-        write!(f, "{:>29}:{:04}: {:>20}:  {}", relpath.display(), self.loc.lineno.unwrap(), self.func, line)
+        let lineno = self.loc.lineno.unwrap_or(0);
+        write!(f, "{:>29}:{:04}: {:>20}:  {}", relpath.display(), lineno, self.func, line)
     }
 }
 

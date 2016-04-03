@@ -1,12 +1,10 @@
-extern crate regex;
-
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cmp::PartialEq;
 use std::cmp::Eq;
 use std::hash::Hash;
 use std::hash::Hasher;
-use self::regex::Regex;
+use super::regex::Regex;
 use ansi_term::Colour;
 use ansi_term::ANSIString;
 
@@ -41,6 +39,19 @@ impl Taint {
     }
 }
 
+pub struct TgEdge {
+    pub dest : Option<Rc<TgNode>>,
+    
+    /// the variable over which dest was reached
+    pub via : String
+}
+
+impl TgEdge {
+    fn new(via: String, dest: Option<Rc<TgNode>>) -> TgEdge {
+        TgEdge { via: via, dest: dest }
+    }
+}
+
 /// As there might be very many tg nodes floating around it is very important
 /// to keep the memory footprint minimal w/o loosing information. Because of that
 /// a TgNode only contains the absolutely necessary information needed for the
@@ -50,8 +61,7 @@ impl Taint {
 /// irrelevant information to keep the memory footprint small.
 pub struct TgNode {
     pub idx: usize, // the index of the line in the taintgrind log
-    pub var: Option<String>,
-    pub preds: Vec<Option<Rc<TgNode>>>,
+    pub preds: Vec<TgEdge>,
     pub sink_reasons: Vec<Rc<TgNode>>,
     pub taint: Taint
 }
@@ -63,24 +73,23 @@ impl TgNode {
                cmd_part: &str,
                tnt_flow: &str,
                idx: usize,
-               graph: &TgNodeMap) -> Rc<TgNode> {
+               graph: &TgNodeMap) -> (Option<String>, Rc<TgNode>) {
         let mut node = TgNode {
             idx: idx,
-            var: None,
             preds: vec![],
             sink_reasons: vec![],
             taint: Taint::Green
         };
 
         // connect to predecessors + find some sink_reasons
-        node.analyze_taint_flow(tnt_flow, graph);
+        let var = node.analyze_taint_flow(tnt_flow, graph);
         
         // calculate the taint
         node.calc_taint(cmd_part);
 
         node.calc_sink(loc_part, cmd_part);
         
-        Rc::new(node)
+        (var, Rc::new(node))
     }
 
     /// Analyze the taint flow
@@ -88,22 +97,24 @@ impl TgNode {
     /// Returns the variable that is defined in this node if any
     fn analyze_taint_flow(&mut self,
                           tnt_flow: &str,
-                          graph: &TgNodeMap) {
+                          graph: &TgNodeMap) -> Option<String> {
         lazy_static! {
             static ref RE_TNT_FLOW: Regex = Regex::new(r"^(.+?) <-?(\*?)- (.+?)$").unwrap();
         }
+
+        let mut var = None;
         
         for pred in tnt_flow.split("; ") {
             if let Some(cap) = RE_TNT_FLOW.captures(pred) {
                 if cap.at(2).unwrap().is_empty() {
                     // e.g. t54_1741 <- t42_1773, t29_4179
-                    match self.var {
+                    match var {
                         Some(ref s) => assert!(s == cap.at(1).unwrap()),
-                        None => self.var = Some(cap.at(1).unwrap().to_string())
+                        None => var = Some(cap.at(1).unwrap().to_string())
                     }
                     
                     for f in cap.at(3).unwrap().split(", ") {
-                        self.preds.push(graph.get(f).map(|n| n.clone()));
+                        self.preds.push(TgEdge::new(f.to_string(), graph.get(f).map(|n| n.clone())));
                     }
                 } else {
                     // e.g. t78_744 <*- t72_268 (for dereferencing)
@@ -120,10 +131,12 @@ impl TgNode {
                 }
             } else { // e.g. t54_1741
                 for f in pred.split(", ") {
-                    self.preds.push(graph.get(f).map(|n| n.clone()));
+                    self.preds.push(TgEdge::new(f.to_string(), graph.get(f).map(|n| n.clone())));
                 }
             }
         }
+
+        var
     }
 
     #[allow(unused_parens)]
@@ -150,8 +163,8 @@ impl TgNode {
                     cmd.starts_with("Sar")) {
                     self.taint = Taint::Red;
                 } else if cmd.starts_with("Add") {
-                    let mut ngp = self.preds.iter().filter(|&pred| {
-                        if let Some(ref p) = *pred { ! p.is_green() } else { true }
+                    let mut ngp = self.preds.iter().filter(|&&TgEdge{ ref dest, .. }| {
+                        dest.as_ref().map_or(true, |p| ! p.is_green())
                     });
                     
                     if ngp.nth(1).is_some() { // at least two blue predecessors
@@ -161,8 +174,8 @@ impl TgNode {
                     // because we are blue at least one pred is blue
                     // if the other one is blue, too, everything is fine and we are green
                     // if the other one is green nothing is fine and we go red
-                    let all_blue = self.preds.iter().all(|pred| {
-                        if let Some(ref p) = *pred { p.is_blue() } else { true }
+                    let all_blue = self.preds.iter().all(|&TgEdge{ ref dest, .. }| {
+                        dest.as_ref().map_or(true, |p| p.is_blue())
                     });
                     
                     if all_blue {
@@ -172,41 +185,20 @@ impl TgNode {
                     }
                 } else {
                     if let Some(cap) = RE_SUB_CMD.captures(cmd) {
-                        let mut ngp = self.preds.iter().filter(|&pred| {
-                            if let Some(ref p) = *pred { ! p.is_green() } else { true }
+                        let mut ngp = self.preds.iter().filter(|&&TgEdge{ ref dest, .. }| {
+                            dest.as_ref().map_or(true, |p| ! p.is_green())
                         });
                         let ngp0 = ngp.next();
-                        
+
+                        // TODO this might be optimizable
                         // we allow (blue - green) but not (green - blue) or (blue - blue)
                         if ngp.next().is_some() {
                             // do not allow (blue - blue)
                             self.taint = Taint::Red;
-                        } else {
-                            match ngp0 {
-                                Some(&Some(ref p)) => {
-                                    let subtrahend = cap.at(1).unwrap();
-                                    
-                                    // this one is a predecessor, so it should have a var set
-                                    assert!(p.var.is_some());
-                                    
-                                    if (p.var.as_ref().unwrap() == subtrahend) {
-                                        self.taint = Taint::Red
-                                    }
-                                },
-                                Some(&None) => {
-                                    // here we could have the following commands
-                                    // t3 = Sub undef t2 | | | t3 <- undef       [BLUE]
-                                    // t3 = Sub undef t2 | | | t3 <- undef, t2   [BLUE]
-                                    // t3 = Sub t2 undef | | | t3 <- undef       [RED]
-                                    // t3 = Sub t2 undef | | | t3 <- undef, t2   [RED]
-                                    // where t2 is always green if it carries taint
-                                    // and undef wasn't defined before (is None here)
-                                    // which means that undef carries blue taint by default
-                                    
-                                    // TODO
-                                    panic!("Not implemented");
-                                },
-                                None => {} // (green - green), all good
+                        } else if let Some(&TgEdge { ref via, .. }) = ngp0 {
+                            let subtrahend = cap.at(1).unwrap();
+                            if (via == subtrahend) {
+                                self.taint = Taint::Red
                             }
                         }
                     } // end if re matches
@@ -215,6 +207,7 @@ impl TgNode {
         } // end if self.is_blue
     }
 
+    #[allow(unused_parens)]
     fn calc_sink(&mut self, loc_part: &str, cmd_part: &str) {
         lazy_static! {
             static ref RE_IF_CMD: Regex = Regex::new(r"^IF ([\w_]+) ").unwrap();
@@ -226,25 +219,20 @@ impl TgNode {
         if ! self.is_green() {
             if loc_part.contains(" _Exit ") {
                 // we must not allow returning tainted exit values
-                for pred in self.preds.iter() {
-                    if let Some(ref p) = *pred {
-                        self.sink_reasons.push(p.clone())
-                    }
+                for pred in self.preds.iter().filter_map(|&TgEdge{ref dest, ..}| dest.as_ref()) {
+                    self.sink_reasons.push(pred.clone())
                 }
             } else {
-                let match_ = RE_IF_CMD.captures(cmd_part).or_else(|| RE_TERNARY_CMD.captures(cmd_part));
-                if let Some(cap) = match_ {
+                if let Some(cap) = RE_IF_CMD.captures(cmd_part).or_else(|| RE_TERNARY_CMD.captures(cmd_part)) {
+                    let cond = cap.at(1).unwrap();
+                    
                     // we can safely allow blue taint to reach a condition because
                     // it is either 0 (null) in all variants or a valid pointer (-> true)
-                    for pred in self.preds.iter() {
-                        if let Some(ref p) = *pred {
-                            // this one is a predecessor, so it should have a var set
-                            assert!(p.var.is_some());
-                            
-                            if p.is_red() && (p.var.as_ref().unwrap() == cap.at(1).unwrap()) {
-                                self.sink_reasons.push(p.clone())
-                            }
-                        }
+                    for pred in (self.preds.iter()
+                                 .filter(|&&TgEdge{ref via,..}| via == cond)
+                                 .filter_map(|&TgEdge{ref dest,..}| dest.as_ref())
+                                 .filter(|p| p.is_red())) {
+                        self.sink_reasons.push(pred.clone())
                     }
                 }
             }
@@ -254,14 +242,12 @@ impl TgNode {
     fn inherit_taint(&mut self) {
         self.taint = if self.is_source() { Taint::Blue } else { Taint::Green };
 
-        for pred in self.preds.iter() {
-            if let Some(ref p) = *pred {
-                if p.is_red() {
-                    self.taint = Taint::Red;
-                    break // once we are red we cannot go back anyway
-                } else if p.is_blue() {
-                    self.taint = Taint::Blue
-                }
+        for pred in self.preds.iter().filter_map(|&TgEdge{ref dest,..}| dest.as_ref()) {
+            if pred.is_red() {
+                self.taint = Taint::Red;
+                break // once we are red we cannot go back anyway
+            } else if pred.is_blue() {
+                self.taint = Taint::Blue
             }
         }
     }
@@ -270,7 +256,7 @@ impl TgNode {
     /// or sink reasons different from None
     pub fn is_source(&self) -> bool {
         // sink reasons are not Options, so there must not be any sink_reasons
-        self.sink_reasons.is_empty() && self.preds.iter().all(|p| p.is_none())
+        self.sink_reasons.is_empty() && self.preds.iter().all(|p| p.dest.is_none())
     }
 
     pub fn is_sink(&self) -> bool {
@@ -287,13 +273,6 @@ impl TgNode {
 
     pub fn is_green(&self) -> bool {
         self.taint == Taint::Green
-    }
-
-    pub fn has_tmp_var(&self) -> bool {
-        lazy_static! {
-            static ref RE_TMP_VAR: Regex = Regex::new(r"^t\d+_\d+$").unwrap();
-        }
-        self.var.as_ref().map_or(false, |v| RE_TMP_VAR.is_match(v))
     }
 
     pub fn print(&self, meta: &mut TgMetaNode, colored: bool) {

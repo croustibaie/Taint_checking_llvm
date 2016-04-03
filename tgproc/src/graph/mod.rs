@@ -1,3 +1,5 @@
+extern crate regex;
+
 mod tgnode;
 pub mod meta;
 
@@ -11,9 +13,11 @@ use std::io::BufRead;
 use std::fs::File;
 use std::io::Result;
 use std::rc::Rc;
+use self::regex::Regex;
 use ansi_term::Colour;
 
 use self::tgnode::TgNode;
+use self::tgnode::TgEdge;
 use self::tgnode::TgNodeMap;
 use self::meta::TgMetaDb;
 use self::meta::TgMetaNode;
@@ -72,11 +76,11 @@ impl Graph {
             let l : String = line.unwrap();
 
             if let Some(lparts) = LineParts::new(&l) {
-                let mut tgo: Rc<TgNode> = TgNode::new(lparts.loc,
-                                                  lparts.cmd,
-                                                  lparts.tnt_flow,
-                                                  idx,
-                                                  &tg_ops);
+                let (var, mut tgo) = TgNode::new(lparts.loc,
+                                                 lparts.cmd,
+                                                 lparts.tnt_flow,
+                                                 idx,
+                                                 &tg_ops);
                 let meta_node = TgMetaNode::new(l.clone(), lparts.loc);
                 
                 let mut kept = false;
@@ -89,7 +93,7 @@ impl Graph {
                         if ! tgo.is_sink() {
                             let reasons = tgo.preds
                                 .iter()
-                                .filter_map(|p| p.clone())
+                                .filter_map(|edge| edge.dest.clone())
                                 .collect::<Vec<Rc<TgNode>>>();
                             Rc::get_mut(&mut tgo).unwrap().sink_reasons.extend_from_slice(reasons.as_slice())
                         }
@@ -100,7 +104,7 @@ impl Graph {
                     }
                 }
                 
-                if let Some(ref v) = tgo.var {
+                if let Some(ref v) = var {
                     if let Some(op) = tg_ops.get(v.as_str()) {
                         panic!(format!("ERROR: Duplicated definition in lines {} and {}",
                                        op.idx + 1,
@@ -110,8 +114,13 @@ impl Graph {
                     let mut node_for_var = Some(tgo.clone());
                     kept = true;
 
+                    lazy_static! {
+                        static ref RE_TMP_VAR: Regex = Regex::new(r"^t\d+_\d+$").unwrap();
+                    }
+                    
                     // filter out unnecessary nodes
-                    if ((graph.options.no_tmp_instr && tgo.has_tmp_var()) ||
+                    if ((meta_node.func == "__wrap_write") || // __wrap_write is part of the instrumentation
+                        (graph.options.no_tmp_instr && RE_TMP_VAR.is_match(v)) ||
                         (graph.options.no_libs && meta_node.is_lib()) ||
                         (graph.options.unique_locs && !locations.insert(meta_node.loc.addr))) {
                         if tgo.preds.is_empty() {
@@ -122,7 +131,7 @@ impl Graph {
                             node_for_var = None;
                             kept = false;
                         } else if tgo.preds.len() == 1 {
-                            if let Some(ref pred) = tgo.preds[0] {
+                            if let TgEdge { dest: Some(ref pred), .. } = tgo.preds[0] {
                                 if pred.taint == tgo.taint { // no taint change occurred
                                     if graph.options.verbosity >= 20 {
                                         println!("REPLACING   {}", l);
@@ -207,7 +216,7 @@ impl Graph {
                 let all_preds : Vec<&TgNode> = if op.is_sink() {
                     op.sink_reasons.iter().map(|pred| pred.as_ref()).collect()
                 } else {
-                    op.preds.iter().filter_map(|pred| pred.as_ref().map(|p| p.as_ref())).collect()
+                    op.preds.iter().filter_map(|edge| edge.dest.as_ref().map(|p| p.as_ref())).collect()
                 };
 
                 // get all preds that are Some, non-green and haven't been detected yet
