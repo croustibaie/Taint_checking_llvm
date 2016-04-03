@@ -23,15 +23,15 @@ use self::walkdir::WalkDirIterator;
 
 use super::tgnode::TgNode;
 
-pub struct DebugInfo(HashMap<String, HashMap<u64, (String, usize)>>);
+pub struct DebugInfoDb(HashMap<String, HashMap<u64, (String, usize)>>);
 
-impl DebugInfo {
-    pub fn new() -> DebugInfo {
-        DebugInfo(HashMap::new())
+impl DebugInfoDb {
+    pub fn new() -> DebugInfoDb {
+        DebugInfoDb(HashMap::new())
     }
     
     fn addr2srcloc(&mut self, binary: &str, addr: u64) -> &(String, usize) {
-        let DebugInfo(ref mut bin_map) = *self;
+        let DebugInfoDb(ref mut bin_map) = *self;
         
         if ! bin_map.contains_key(binary) {
             bin_map.insert(binary.to_string(), HashMap::new());
@@ -79,7 +79,7 @@ impl SrcLoc {
         u64::from_str_radix(&addr[2..], 16).map(|a| SrcLoc::new_u64(a, file, lineno))
     }
 
-    pub fn complete_info(&mut self, debug_db: &mut DebugInfo) {
+    pub fn complete_info(&mut self, debug_db: &mut DebugInfoDb) {
         if self.lineno.is_none() {
             let (ref file, lineno) = *debug_db.addr2srcloc(&self.file, self.addr);
             self.file = file.clone();
@@ -213,9 +213,9 @@ pub trait TgMetaDb {
 
     fn insert_meta(&mut self, idx: usize, meta: TgMetaNode);
     
-    fn get_by_idx(&self, idx: usize) -> Option<&TgMetaNode>;
-    fn get(&self, node: &TgNode) -> Option<&TgMetaNode> {
-        self.get_by_idx(node.idx)
+    fn get_mut_by_idx(&mut self, idx: usize) -> Option<&mut TgMetaNode>;
+    fn get_mut(&mut self, node: &TgNode) -> Option<&mut TgMetaNode> {
+        self.get_mut_by_idx(node.idx)
     }
 }
 

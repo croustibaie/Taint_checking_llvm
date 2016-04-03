@@ -16,6 +16,7 @@ use self::tgnode::TgNode;
 use self::tgnode::TgNodeMap;
 use self::meta::TgMetaDb;
 use self::meta::TgMetaNode;
+use self::meta::DebugInfoDb;
 use super::cli::Options;
 
 const PRINT_DETECTION_VERBOSITY: u8 = 20;
@@ -195,7 +196,10 @@ impl Graph {
         paths
     }
 
-    pub fn print_traces_of<T: TgMetaDb>(&self, sink: &TgNode, meta_db: &mut T) {
+    pub fn print_traces_of<T: TgMetaDb>(&self,
+                                        sink: &TgNode,
+                                        meta_db: &mut T,
+                                        debug_db: &mut DebugInfoDb) {
         for (tidx,trace) in self.get_traces(sink).iter().enumerate() {
             // separate each source
             if tidx > 0 {
@@ -211,16 +215,18 @@ impl Graph {
 
             if self.options.src_only {
                 let src = trace[0];
-                let l = meta_db.get(src);
+                let mut meta: &mut TgMetaNode = meta_db.get_mut(src).unwrap();
 
+                meta.loc.complete_info(debug_db);
                 
-                
-                //println!("{} {}", src.taint.abbrv(), l);
+                println!("{} {}", src.taint.abbrv(), meta);
             }
         }
     }
 
     pub fn print_traces<T: TgMetaDb>(&self, meta_db: &mut T) {
+        let mut debug_db = DebugInfoDb::new();
+        
         for (sidx,sink) in self.sinks.iter().enumerate() {
             // separate each sink
             if sidx > 0 {
@@ -232,7 +238,7 @@ impl Graph {
                 }
             }
 
-            self.print_traces_of(sink, meta_db);
+            self.print_traces_of(sink, meta_db, &mut debug_db);
         }
     }
 }
