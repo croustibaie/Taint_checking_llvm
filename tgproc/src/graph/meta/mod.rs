@@ -58,7 +58,7 @@ impl DebugInfoDb {
 }
 
 pub struct SrcLoc {
-    addr: u64,
+    pub addr: u64,
     pub file: String,
     pub lineno: Option<usize>,
     pub src_line: Option<String>

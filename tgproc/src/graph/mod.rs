@@ -2,6 +2,7 @@ mod tgnode;
 pub mod meta;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::iter::Iterator;
 use std::cmp::Ordering;
@@ -52,17 +53,19 @@ impl<'a> LineParts<'a> {
 }
 
 impl Graph {
+    #[allow(unused_parens)]
     pub fn new<T: TgMetaDb>(options: Options, mut meta_db: Option<&mut T>) -> Result<Graph> {
         assert!(options.sink_lines.is_empty(), "Manually setting sink lines not yet implemented");
         
         let mut tg_ops: TgNodeMap = HashMap::new();
+        let mut locations = HashSet::new();
         
         let mut graph = Graph {
             sinks : vec![],
             options: options,
             idxwidth: 8
         };
-
+        
         let f = try!(File::open(&graph.options.logfile));
         let file = BufReader::new(&f);
         for (idx, line) in file.lines().enumerate() {
@@ -89,10 +92,11 @@ impl Graph {
 
                     let mut node_for_var = Some(tgo.clone());
                     kept = true;
-                    
+
                     // filter out unnecessary nodes
-                    if (!graph.options.tmp_instr && tgo.has_tmp_var()) ||
-                        (!graph.options.libs && meta_node.is_lib()) {
+                    if ((graph.options.no_tmp_instr && tgo.has_tmp_var()) ||
+                        (graph.options.no_libs && meta_node.is_lib()) ||
+                        (graph.options.unique_locs && !locations.insert(meta_node.loc.addr))) {
                         if tgo.preds.is_empty() {
                             node_for_var = None;
                             kept = false;
@@ -161,7 +165,7 @@ impl Graph {
             }
 
             if op.is_source() {
-                if print_detection { print!("found source") }
+                if print_detection { println!("found source") }
                 sources.push(op);
             } else {
                 let all_preds : Vec<&TgNode> = if op.is_sink() {

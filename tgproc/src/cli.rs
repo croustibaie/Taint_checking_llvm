@@ -6,8 +6,8 @@ pub struct Options {
     pub taintgrind_trace: bool,
     pub mark_taint: bool,
     pub mark_trace: bool,
-    pub libs: bool,
-    pub tmp_instr: bool,
+    pub no_libs: bool,
+    pub no_tmp_instr: bool,
     pub unique_locs: bool,
     pub src_only: bool,
     pub color: bool,
@@ -22,8 +22,8 @@ pub fn parse_opts() -> Options {
         taintgrind_trace: false,
         mark_taint: false,
         mark_trace: false,
-        libs: false,
-        tmp_instr: false,
+        no_libs: false,
+        no_tmp_instr: false,
         unique_locs: false,
         src_only: false,
         color: true,
@@ -44,15 +44,15 @@ pub fn parse_opts() -> Options {
             .add_option(&["-q", "--quiet"], StoreConst(0),
                         "Quiet mode");
         
-        ap.refer(&mut cli_opts.libs)
-            .add_option(&["--libs"], StoreTrue,
+        ap.refer(&mut cli_opts.no_libs)
+            .add_option(&["--libs"], StoreFalse,
                         "In the traces, show lines that are located in 3rd-party-libraries. \
                          Specifically, a line is considered to be in a \
                          library, if the source file cannot be found below the \
                          current working directory.");
         
-        ap.refer(&mut cli_opts.tmp_instr)
-            .add_option(&["--tmp-instr"], StoreTrue,
+        ap.refer(&mut cli_opts.no_tmp_instr)
+            .add_option(&["--tmp-instr"], StoreFalse,
                         "In the traces, show lines that affect only temporary \
                          variables inserted by valgrind.");
         
