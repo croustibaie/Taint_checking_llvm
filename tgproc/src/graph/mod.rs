@@ -277,7 +277,7 @@ impl Graph {
                     let mut meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
 
                     if self.options.taintgrind_trace {
-                        println!("{}", meta.line)
+                        println!("{}", node.taint.paint(&meta.line))
                     } else {
                         meta.loc.complete_info(debug_db);
                         node.print(meta, self.options.color)
