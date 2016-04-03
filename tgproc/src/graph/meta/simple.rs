@@ -10,7 +10,7 @@ impl TgMetaDb for MetaDB {
         MetaDB(HashMap::new())
     }
     
-    fn insert_meta(&mut self, idx: usize, meta: TgMetaNode) {
+    fn insert(&mut self, idx: usize, meta: TgMetaNode) {
         let MetaDB(ref mut map) = *self;
         map.insert(idx, meta);
     }

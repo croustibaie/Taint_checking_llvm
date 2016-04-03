@@ -171,23 +171,17 @@ impl Display for TgMetaNode {
     }
 }
 
-pub trait TgMetaDb {
-    fn new() -> Self;
-    
-    fn insert_node(&mut self, node: &TgNode, line : String, loc_part: &str) {
-        self.insert(node.idx, line, loc_part)
-    }
-    
-    fn insert(&mut self, idx: usize, line : String, loc_part: &str) {
+impl TgMetaNode {
+    pub fn new(line : String, loc_part: &str) -> TgMetaNode {
         lazy_static! {
             // e.g. 0x40080D: main (two-taints.c:10)
             static ref RE_LOC1: Regex = Regex::new(r"(0x\w+): (.+?) \((.+):(\d+)\)").unwrap();
-
+            
             // e.g. 0x40080D: main (in /tmp/a.out)
             static ref RE_LOC2: Regex = Regex::new(r"(0x\w+): (.+?) \(in (.+)\)").unwrap();
         }
-
-        let tgmeta = if let Some(cap) = RE_LOC1.captures(loc_part) {
+        
+        if let Some(cap) = RE_LOC1.captures(loc_part) {
             TgMetaNode {
                 line: line,
                 loc: SrcLoc::new(cap.at(1).unwrap(),
@@ -206,12 +200,22 @@ pub trait TgMetaDb {
             }
         } else {
             panic!("Could not parse loc part: {}", loc_part);
-        };
-
-        self.insert_meta(idx, tgmeta);
+        }
     }
 
-    fn insert_meta(&mut self, idx: usize, meta: TgMetaNode);
+    pub fn is_lib(&self) -> bool {
+        self.loc.file.ends_with(".so") // TODO only works on linux
+    }
+}
+
+pub trait TgMetaDb {
+    fn new() -> Self;
+    
+    fn insert_node(&mut self, node: &TgNode, meta: TgMetaNode) {
+        self.insert(node.idx, meta)
+    }
+    
+    fn insert(&mut self, idx: usize, meta: TgMetaNode);
     
     fn get_mut_by_idx(&mut self, idx: usize) -> Option<&mut TgMetaNode>;
     fn get_mut(&mut self, node: &TgNode) -> Option<&mut TgMetaNode> {

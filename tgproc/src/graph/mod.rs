@@ -72,11 +72,12 @@ impl Graph {
 
             if let Some(lparts) = LineParts::new(&l) {
                 let tgo: Rc<TgNode> = TgNode::new(lparts.loc,
-                                              lparts.cmd,
-                                              lparts.tnt_flow,
-                                              idx,
-                                              &tg_ops);
-
+                                                  lparts.cmd,
+                                                  lparts.tnt_flow,
+                                                  idx,
+                                                  &tg_ops);
+                let meta_node = TgMetaNode::new(l.clone(), lparts.loc);
+                
                 let mut kept = false;
                                 
                 if let Some(ref v) = tgo.var {
@@ -90,7 +91,8 @@ impl Graph {
                     kept = true;
                     
                     // filter out unnecessary nodes
-                    if !graph.options.tmp_instr && tgo.has_tmp_var() {
+                    if (!graph.options.tmp_instr && tgo.has_tmp_var()) ||
+                        (!graph.options.libs && meta_node.is_lib()) {
                         if tgo.preds.is_empty() {
                             node_for_var = None;
                             kept = false;
@@ -122,7 +124,7 @@ impl Graph {
                 
                 if kept {
                     if let Some(ref mut mdb) = meta_db.as_mut() {
-                        mdb.insert(idx, l.clone(), lparts.loc);
+                        mdb.insert(idx, meta_node);
                     }
                 }
             }
