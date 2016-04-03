@@ -14,7 +14,11 @@ fn main() {
 
     let mut meta_db = SimpleMetaDB::new();
     match Graph::new(cli_opts, Some(&mut meta_db)) {
-        Ok(graph) => graph.print_traces(&mut meta_db),
+        Ok(graph) => {
+            if ! graph.options.mark_taint {
+                graph.print_traces(&mut meta_db)
+            }
+        },
         Err(x) => println!("{}", x)
     }
 }

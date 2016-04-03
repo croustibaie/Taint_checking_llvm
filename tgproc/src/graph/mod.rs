@@ -23,7 +23,7 @@ const PRINT_DETECTION_VERBOSITY: u8 = 20;
 
 pub struct Graph {
     pub sinks : Vec<Rc<TgNode>>,
-    options : Options,
+    pub options : Options,
     idxwidth : usize,
 }
 
@@ -78,17 +78,34 @@ impl Graph {
                                               &tg_ops);
 
                 let mut kept = false;
-                
+                                
                 if let Some(ref v) = tgo.var {
                     if let Some(op) = tg_ops.get(v.as_str()) {
                         panic!(format!("ERROR: Duplicated definition in lines {} and {}",
                                        op.idx + 1,
                                        idx+1))
                     }
-                    tg_ops.insert(v.to_string(), tgo.clone());
+
+                    let mut node_for_var = Some(tgo.clone());
                     kept = true;
+                    
+                    // filter out unnecessary nodes
+                    if !graph.options.tmp_instr && tgo.has_tmp_var() {
+                        if tgo.preds.is_empty() {
+                            node_for_var = None;
+                            kept = false;
+                        } else if tgo.preds.len() == 1 {
+                            // we just replace the node in the map with its pred
+                            node_for_var = tgo.preds[0].clone();
+                            kept = false;
+                        }
+                    }
+
+                    if let Some(nfv) = node_for_var {
+                        tg_ops.insert(v.to_string(), nfv);
+                    }
                 }
-                
+
                 if tgo.is_sink() {
                     graph.sinks.push(tgo.clone());
                     kept = true;
@@ -227,7 +244,7 @@ impl Graph {
                     let line = l.unwrap();
                     print!("{:8}   ", idx+1);
 
-                    if trace_iter.peek().map(|n| n.idx == idx).unwrap_or(false) {
+                    if trace_iter.peek().map_or(false, |n| n.idx == idx) {
                         let node = trace_iter.next().unwrap();
 
                         if self.options.color {

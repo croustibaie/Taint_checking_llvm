@@ -289,6 +289,13 @@ impl TgNode {
         self.taint == Taint::Green
     }
 
+    pub fn has_tmp_var(&self) -> bool {
+        lazy_static! {
+            static ref RE_TMP_VAR: Regex = Regex::new(r"^t\d+_\d+$").unwrap();
+        }
+        self.var.as_ref().map_or(false, |v| RE_TMP_VAR.is_match(v))
+    }
+
     pub fn print(&self, meta: &mut TgMetaNode, colored: bool) {
         let tnt_str = self.taint.abbrv();
         if colored {
