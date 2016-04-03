@@ -115,12 +115,31 @@ impl Graph {
                         (graph.options.no_libs && meta_node.is_lib()) ||
                         (graph.options.unique_locs && !locations.insert(meta_node.loc.addr))) {
                         if tgo.preds.is_empty() {
+                            if graph.options.verbosity >= 20 {
+                                println!("REPLACING   {}", l);
+                                println!("BY          NONE");
+                            }
                             node_for_var = None;
                             kept = false;
                         } else if tgo.preds.len() == 1 {
-                            // we just replace the node in the map with its pred
-                            node_for_var = tgo.preds[0].clone();
-                            kept = false;
+                            if let Some(ref pred) = tgo.preds[0] {
+                                if pred.taint == tgo.taint { // no taint change occurred
+                                    if graph.options.verbosity >= 20 {
+                                        println!("REPLACING   {}", l);
+                                        println!("BY          {}", meta_db.as_mut().unwrap().get_mut(pred).unwrap().line);
+                                    }
+                                    // we just replace the node in the map with its pred
+                                    node_for_var = Some(pred.clone());
+                                    kept = false;
+                                }
+                            } else {
+                                if graph.options.verbosity >= 20 {
+                                    println!("REPLACING   {}", l);
+                                    println!("BY          NONE");
+                                }
+                                node_for_var = None;
+                                kept = false;
+                            }
                         }
                     }
 
