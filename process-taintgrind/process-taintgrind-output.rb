@@ -234,7 +234,7 @@ class TaintGrindOp
     file = Pathname.new(self.get_file)
     file = file.relative_path_from(Pathname.new(File.expand_path("."))) if file.absolute?
     
-    return "%s%30s:%.4d: %20s:  %s" % [taint, file.to_s, self.get_lineno, @func, line]
+    return "%s %29s:%.4d: %20s:  %s" % [taint, file.to_s, self.get_lineno, @func, line]
   end
   
   def get_traces

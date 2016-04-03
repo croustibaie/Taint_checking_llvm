@@ -20,10 +20,9 @@ use super::cli::Options;
 
 const PRINT_DETECTION_VERBOSITY: u8 = 20;
 
-pub struct Graph<'a, T: TgMetaDb> {
+pub struct Graph {
     pub sinks : Vec<Rc<TgNode>>,
-    meta : T,
-    options : &'a Options,
+    options : Options,
     idxwidth : usize,
 }
 
@@ -51,20 +50,19 @@ impl<'a> LineParts<'a> {
     }
 }
 
-impl<'a, T: TgMetaDb> Graph<'a, T> {
-    pub fn new(options: &Options) -> Result<Graph<T>> {
+impl Graph {
+    pub fn new<T: TgMetaDb>(options: Options, mut meta_db: Option<&mut T>) -> Result<Graph> {
         assert!(options.sink_lines.is_empty(), "Manually setting sink lines not yet implemented");
         
         let mut tg_ops: TgNodeMap = HashMap::new();
         
         let mut graph = Graph {
             sinks : vec![],
-            meta : T::new(),
             options: options,
             idxwidth: 8
         };
 
-        let f = try!(File::open(&options.logfile));
+        let f = try!(File::open(&graph.options.logfile));
         let file = BufReader::new(&f);
         for (idx, line) in file.lines().enumerate() {
             graph.idxwidth = (idx+1).to_string().len();
@@ -96,9 +94,9 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
                     kept = true;
                 }
                 
-                if options.mark_taint {
+                if graph.options.mark_taint {
                     print!("{:8}   ", tgo.idx+1);
-                    if options.color {
+                    if graph.options.color {
                         println!("{}", tgo.taint.color(&l));
                     } else {
                         println!("[{}]  {}", tgo.taint.abbrv(), l);
@@ -106,7 +104,9 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
                 }
                 
                 if kept {
-                    graph.meta.insert(idx, l.clone(), lparts.loc);
+                    if let Some(ref mut mdb) = meta_db.as_mut() {
+                        mdb.insert(idx, l.clone(), lparts.loc);
+                    }
                 }
             }
         }
@@ -195,11 +195,32 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
         paths
     }
 
-    pub fn print_traces_of(&self, sink: &TgNode) {
-        
+    pub fn print_traces_of<T: TgMetaDb>(&self, sink: &TgNode, meta_db: &mut T) {
+        for (tidx,trace) in self.get_traces(sink).iter().enumerate() {
+            // separate each source
+            if tidx > 0 {
+                let sep = "--------------------------------------------------------------------------------";
+                if self.options.color {
+                    println!("{}", Colour::Yellow.paint(sep));
+                } else {
+                    println!("{}", sep);
+                }
+            }
+
+            println!(">>>> The origin of the taint should be just here <<<<");
+
+            if self.options.src_only {
+                let src = trace[0];
+                let l = meta_db.get(src);
+
+                
+                
+                //println!("{} {}", src.taint.abbrv(), l);
+            }
+        }
     }
 
-    pub fn print_traces(&self) {
+    pub fn print_traces<T: TgMetaDb>(&self, meta_db: &mut T) {
         for (sidx,sink) in self.sinks.iter().enumerate() {
             // separate each sink
             if sidx > 0 {
@@ -211,23 +232,7 @@ impl<'a, T: TgMetaDb> Graph<'a, T> {
                 }
             }
 
-            /*for (tidx,trace) in self.get_traces(sink) {
-                // separate each source
-                if tidx > 0 {
-                    let sep = "--------------------------------------------------------------------------------";
-                    if self.options.color {
-                        println!("{}", Colour::Yellow.paint(sep));
-                    } else {
-                        println!("{}", sep);
-                    }
-                }
-
-                println!(">>>> The origin of the taint should be just here <<<<");
-
-                if self.options.src_only {
-                    //TODO println!();
-                }
-            }*/
+            self.print_traces_of(sink, meta_db);
         }
     }
 }

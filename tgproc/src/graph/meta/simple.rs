@@ -15,7 +15,7 @@ impl TgMetaDb for MetaDB {
         map.insert(idx, meta);
     }
     
-    fn get(&self, idx: usize) -> Option<&TgMetaNode> {
+    fn get_by_idx(&self, idx: usize) -> Option<&TgMetaNode> {
         let MetaDB(ref map) = *self;
         map.get(&idx)
     }
