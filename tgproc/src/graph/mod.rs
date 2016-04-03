@@ -227,7 +227,7 @@ impl Graph {
                         println!("{}", meta.line)
                     } else {
                         meta.loc.complete_info(debug_db);
-                        println!("{}", meta);
+                        node.print(meta, self.options.color)
                     }
                 }
             }

@@ -40,7 +40,7 @@ impl DebugInfoDb {
         let mut addr_map = bin_map.get_mut(binary).unwrap();
 
         if ! addr_map.contains_key(&addr) {
-            let output = Command::new("sh")
+            let output = Command::new("addr2line")
                 .arg("-e")
                 .arg(binary)
                 .arg(format!("0x{:x}", addr))
@@ -50,7 +50,7 @@ impl DebugInfoDb {
             let output_str = String::from_utf8(output.stdout).unwrap();
             let mut out_split = output_str.split(":");
             let file = out_split.next().unwrap().to_string();
-            let lineno = out_split.next().unwrap().parse::<usize>().unwrap();
+            let lineno = out_split.next().unwrap().trim().parse::<usize>().unwrap();
             addr_map.insert(addr, (file, lineno));
         }
 
