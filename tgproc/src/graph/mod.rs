@@ -218,7 +218,41 @@ impl Graph {
                 meta.loc.complete_info(debug_db);
                 src.print(meta, self.options.color);
             } else if self.options.mark_trace {
+                let f = File::open(&self.options.logfile).unwrap();
+                let file = BufReader::new(&f);
+
+                let mut trace_iter = trace.iter().peekable();
                 
+                for (idx, l) in file.lines().enumerate() {
+                    let line = l.unwrap();
+                    print!("{:8}   ", idx+1);
+
+                    if trace_iter.peek().map(|n| n.idx == idx).unwrap_or(false) {
+                        let node = trace_iter.next().unwrap();
+
+                        if self.options.color {
+                            let clr = node.taint.color();
+                            if node.is_sink() {
+                                println!("{}", clr.bold().paint(line))
+                            } else {
+                                println!("{}", clr.paint(line))
+                            }
+                        } else {
+                            if node.is_sink() {
+                                print!("*{}*  ", node.taint.abbrv())
+                            } else {
+                                print!("[{}]  ", node.taint.abbrv())
+                            }
+                            println!("{}", line);
+                        }
+                        
+                    } else {
+                        if ! self.options.color {
+                            print!("     ");
+                        }
+                        println!("{}", line);
+                    }
+                }
             } else {
                 for node in trace {
                     let mut meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
