@@ -80,13 +80,12 @@ impl Graph {
                 let mut kept = false;
                 
                 if let Some(ref v) = tgo.var {
-                    let vx: &str = v;
-                    if let Some(op) = tg_ops.get(vx) {
+                    if let Some(op) = tg_ops.get(v.as_str()) {
                         panic!(format!("ERROR: Duplicated definition in lines {} and {}",
                                        op.idx + 1,
                                        idx+1))
                     }
-                    tg_ops.insert(vx.to_string(), tgo.clone());
+                    tg_ops.insert(v.to_string(), tgo.clone());
                     kept = true;
                 }
                 
@@ -98,7 +97,7 @@ impl Graph {
                 if graph.options.mark_taint {
                     print!("{:8}   ", tgo.idx+1);
                     if graph.options.color {
-                        println!("{}", tgo.taint.color(&l));
+                        println!("{}", tgo.taint.paint(&l));
                     } else {
                         println!("[{}]  {}", tgo.taint.abbrv(), l);
                     }
@@ -215,11 +214,22 @@ impl Graph {
 
             if self.options.src_only {
                 let src = trace[0];
-                let mut meta: &mut TgMetaNode = meta_db.get_mut(src).unwrap();
-
+                let meta = meta_db.get_mut(src).unwrap();
                 meta.loc.complete_info(debug_db);
+                src.print(meta, self.options.color);
+            } else if self.options.mark_trace {
                 
-                println!("{} {}", src.taint.abbrv(), meta);
+            } else {
+                for node in trace {
+                    let mut meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+
+                    if self.options.taintgrind_trace {
+                        println!("{}", meta.line)
+                    } else {
+                        meta.loc.complete_info(debug_db);
+                        println!("{}", meta);
+                    }
+                }
             }
         }
     }

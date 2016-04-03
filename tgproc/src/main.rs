@@ -13,7 +13,8 @@ fn main() {
     let cli_opts = parse_opts();
 
     let mut meta_db = SimpleMetaDB::new();
-    let graph = Graph::new(cli_opts, Some(&mut meta_db)).unwrap();
-
-    graph.print_traces(&mut meta_db);
+    match Graph::new(cli_opts, Some(&mut meta_db)) {
+        Ok(graph) => graph.print_traces(&mut meta_db),
+        Err(x) => println!("{}", x)
+    }
 }

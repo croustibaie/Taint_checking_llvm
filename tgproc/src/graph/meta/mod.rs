@@ -191,18 +191,18 @@ pub trait TgMetaDb {
             TgMetaNode {
                 line: line,
                 loc: SrcLoc::new(cap.at(1).unwrap(),
-                                 cap.at(2).unwrap().to_string(),
+                                 cap.at(3).unwrap().to_string(),
                                  Some(cap.at(4).unwrap().parse::<usize>().unwrap())).unwrap(),
-                func: cap.at(3).unwrap().to_string(),
+                func: cap.at(2).unwrap().to_string(),
                 
             }
         } else if let Some(cap) = RE_LOC2.captures(loc_part) {
             TgMetaNode {
                 line: line,
                 loc: SrcLoc::new(cap.at(1).unwrap(),
-                                 cap.at(2).unwrap().to_string(),
+                                 cap.at(3).unwrap().to_string(),
                                  None).unwrap(),
-                func: cap.at(3).unwrap().to_string(),
+                func: cap.at(2).unwrap().to_string(),
             }
         } else {
             panic!("Could not parse loc part: {}", loc_part);

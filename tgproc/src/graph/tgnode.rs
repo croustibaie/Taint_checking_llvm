@@ -10,6 +10,8 @@ use self::regex::Regex;
 use ansi_term::Colour;
 use ansi_term::ANSIString;
 
+use super::meta::TgMetaNode;
+
 #[derive(PartialEq)]
 pub enum Taint {
     Red,
@@ -18,11 +20,15 @@ pub enum Taint {
 }
 
 impl Taint {
-    pub fn color<'a>(&self, s : &'a str) -> ANSIString<'a> {
+    pub fn paint<'a>(&self, s : &'a str) -> ANSIString<'a> {
+        self.color().paint(s)
+    }
+
+    pub fn color(&self) -> Colour {
         match *self {
-            Taint::Red => Colour::Red.paint(s),
-            Taint::Blue => Colour::Blue.paint(s),
-            Taint::Green => Colour::Green.paint(s)
+            Taint::Red => Colour::Red,
+            Taint::Blue => Colour::Blue,
+            Taint::Green => Colour::Green
         }
     }
 
@@ -281,6 +287,21 @@ impl TgNode {
 
     pub fn is_green(&self) -> bool {
         self.taint == Taint::Green
+    }
+
+    pub fn print(&self, meta: &mut TgMetaNode, colored: bool) {
+        let tnt_str = self.taint.abbrv();
+        if colored {
+            let clr: Colour = self.taint.color();
+            let meta_str = meta.to_string();
+            if self.is_sink() {
+                println!("{} {}", tnt_str, clr.bold().paint(meta_str.as_str()));
+            } else {
+                println!("{} {}", tnt_str, clr.paint(meta_str.as_str()));
+            }
+        } else {
+            println!("{} {}", tnt_str, meta);
+        }
     }
 }
 
