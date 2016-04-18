@@ -3,6 +3,5 @@ B                    bitnot01.c:0005:                 main:  int main() {
 B                    bitnot01.c:0007:                 main:  int* xp = &x;
 B                    bitnot01.c:0008:                 main:  return f((int) xp);
 B                    bitnot01.c:0001:                    f:  int f(int a) {
-B                    bitnot01.c:0001:                    f:  int f(int a) {
 R                    bitnot01.c:0002:                    f:  return ~a;
 R                            ??:0000:                _Exit:  [file not found]

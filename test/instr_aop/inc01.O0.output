@@ -3,7 +3,6 @@ B                       inc01.c:0006:                 main:  int main() {
 B                       inc01.c:0008:                 main:  int* xp = &x;
 B                       inc01.c:0009:                 main:  return f((int) xp);
 B                       inc01.c:0001:                    f:  int f(int a) {
-B                       inc01.c:0001:                    f:  int f(int a) {
 B                       inc01.c:0002:                    f:  ++a;
 B                       inc01.c:0003:                    f:  return a;
 B                            ??:0000:                _Exit:  [file not found]

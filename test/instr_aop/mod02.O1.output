@@ -3,6 +3,5 @@ B                       mod02.c:0005:                 main:  int main() {
 B                       mod02.c:0008:                 main:  int* xp = &x;
 B                       mod02.c:0009:                 main:  return f((int) xp, y);
 B                       mod02.c:0001:                    f:  int f(int a, int b) {
-B                       mod02.c:0001:                    f:  int f(int a, int b) {
 R                       mod02.c:0002:                    f:  return a%b;
 R                            ??:0000:                _Exit:  [file not found]
