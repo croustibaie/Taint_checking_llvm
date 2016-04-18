@@ -20,7 +20,7 @@ def allTests():
         if basename(splitext(splitext(test.getName())[0])[0]) in optionals:
             test.opt()
 
-        test.timeoutFactor = 3
+        test.timeoutFactor = 5
             
     return tests
 
