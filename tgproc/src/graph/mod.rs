@@ -84,6 +84,7 @@ impl Graph {
                 let meta_node = TgMetaNode::new(l.clone(), lparts.loc);
                 
                 let mut kept = false;
+                let mut keep_reason = "";
 
                 // if the sinks were set manually we have to fix the reasons
                 if ! graph.options.sink_lines.is_empty() {
@@ -113,6 +114,7 @@ impl Graph {
 
                     let mut node_for_var = Some(tgo.clone());
                     kept = true;
+                    keep_reason = "DEF ";
 
                     lazy_static! {
                         static ref RE_TMP_VAR: Regex = Regex::new(r"^t\d+_\d+$").unwrap();
@@ -161,6 +163,7 @@ impl Graph {
                 if tgo.is_sink() {
                     graph.sinks.push(tgo.clone());
                     kept = true;
+                    keep_reason = "SINK"
                 }
                 
                 if graph.options.mark_taint {
@@ -173,9 +176,17 @@ impl Graph {
                 }
                 
                 if kept {
+                    if graph.options.verbosity >= 20 {
+                        println!("KEEP {}   {}", keep_reason, l);
+                    }
+                    
                     if let Some(ref mut mdb) = meta_db.as_mut() {
                         mdb.insert(idx, meta_node);
                     }
+                }
+
+                if graph.options.verbosity >= 20 {
+                    println!("");
                 }
             }
         }
