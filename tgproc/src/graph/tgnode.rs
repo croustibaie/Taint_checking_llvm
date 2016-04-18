@@ -275,7 +275,7 @@ impl TgNode {
         self.taint == Taint::Green
     }
 
-    pub fn print(&self, meta: &mut TgMetaNode, colored: bool) {
+    pub fn print(&self, meta: &TgMetaNode, colored: bool) {
         let tnt_str = self.taint.abbrv();
         if colored {
             let clr: Colour = self.taint.color();

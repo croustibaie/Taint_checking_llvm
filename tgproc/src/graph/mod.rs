@@ -119,7 +119,7 @@ impl Graph {
                     }
                     
                     // filter out unnecessary nodes
-                    if ((meta_node.func == "__wrap_write") || // __wrap_write is part of the instrumentation
+                    if ((meta_node.loc.func == "__wrap_write") || // __wrap_write is part of the instrumentation
                         (graph.options.no_tmp_instr && RE_TMP_VAR.is_match(v)) ||
                         (graph.options.no_libs && meta_node.is_lib()) ||
                         (graph.options.unique_locs && !locations.insert(meta_node.loc.addr))) {
@@ -321,15 +321,26 @@ impl Graph {
                         println!("{}", line);
                     }
                 }
+            } else if self.options.taintgrind_trace {
+                for node in trace {
+                    let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+                    println!("{}", node.taint.paint(&meta.line))
+                }
             } else {
                 for node in trace {
-                    let mut meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+                    let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+                    meta.loc.complete_info(debug_db);
+                }
 
-                    if self.options.taintgrind_trace {
-                        println!("{}", node.taint.paint(&meta.line))
-                    } else {
-                        meta.loc.complete_info(debug_db);
-                        node.print(meta, self.options.color)
+                let mut prev_loc = None;
+                
+                for node in trace {
+                    let meta: &TgMetaNode = meta_db.get(node).unwrap();
+                    
+                    // don't print the same line twice
+                    if Some(&meta.loc) != prev_loc {
+                        node.print(meta, self.options.color);
+                        prev_loc = Some(&meta.loc);
                     }
                 }
             }

@@ -19,4 +19,9 @@ impl TgMetaDb for MetaDB {
         let MetaDB(ref mut map) = *self;
         map.get_mut(&idx)
     }
+
+    fn get_by_idx(&self, idx: usize) -> Option<&TgMetaNode> {
+        let MetaDB(ref map) = *self;
+        map.get(&idx)
+    }
 }

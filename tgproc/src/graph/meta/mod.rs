@@ -65,21 +65,23 @@ pub struct SrcLoc {
     pub addr: u64,
     pub file: String,
     pub lineno: Option<usize>,
-    pub src_line: Option<String>
+    pub src_line: Option<String>,
+    pub func: String
 }
 
 impl SrcLoc {
-    pub fn new_u64(addr: u64, file: String, lineno: Option<usize>) -> SrcLoc {
+    pub fn new_u64(addr: u64, file: String, lineno: Option<usize>, func: String) -> SrcLoc {
         SrcLoc {
             addr: addr,
             file: file,
             lineno: lineno,
-            src_line: None
+            src_line: None,
+            func: func
         }
     }
 
-    pub fn new(addr: &str, file: String, lineno: Option<usize>) -> Result<SrcLoc, ParseIntError> {
-        u64::from_str_radix(&addr[2..], 16).map(|a| SrcLoc::new_u64(a, file, lineno))
+    pub fn new(addr: &str, file: String, lineno: Option<usize>, func: String) -> Result<SrcLoc, ParseIntError> {
+        u64::from_str_radix(&addr[2..], 16).map(|a| SrcLoc::new_u64(a, file, lineno, func))
     }
 
     #[allow(unused_parens)]
@@ -135,10 +137,15 @@ impl SrcLoc {
     }
 }
 
+impl PartialEq for SrcLoc {
+    fn eq(&self, other: &SrcLoc) -> bool {
+        self.lineno == other.lineno && self.file == other.file && self.func == other.func
+    }
+}
+
 pub struct TgMetaNode {
     pub line: String,
     pub loc: SrcLoc,
-    pub func: String
 }
 
 impl Display for TgMetaNode {
@@ -171,7 +178,7 @@ impl Display for TgMetaNode {
         }
 
         let lineno = self.loc.lineno.unwrap_or(0);
-        write!(f, "{:>29}:{:04}: {:>20}:  {}", relpath.display(), lineno, self.func, line)
+        write!(f, "{:>29}:{:04}: {:>20}:  {}", relpath.display(), lineno, self.loc.func, line)
     }
 }
 
@@ -190,17 +197,16 @@ impl TgMetaNode {
                 line: line,
                 loc: SrcLoc::new(cap.at(1).unwrap(),
                                  cap.at(3).unwrap().to_string(),
-                                 Some(cap.at(4).unwrap().parse::<usize>().unwrap())).unwrap(),
-                func: cap.at(2).unwrap().to_string(),
-                
+                                 Some(cap.at(4).unwrap().parse::<usize>().unwrap()),
+                                 cap.at(2).unwrap().to_string()).unwrap(),
             }
         } else if let Some(cap) = RE_LOC2.captures(loc_part) {
             TgMetaNode {
                 line: line,
                 loc: SrcLoc::new(cap.at(1).unwrap(),
                                  cap.at(3).unwrap().to_string(),
-                                 None).unwrap(),
-                func: cap.at(2).unwrap().to_string(),
+                                 None,
+                                 cap.at(2).unwrap().to_string()).unwrap(),
             }
         } else {
             panic!("Could not parse loc part: {}", loc_part);
@@ -220,6 +226,11 @@ pub trait TgMetaDb {
     }
     
     fn insert(&mut self, idx: usize, meta: TgMetaNode);
+
+    fn get_by_idx(&self, idx: usize) -> Option<&TgMetaNode>;
+    fn get(&self, node: &TgNode) -> Option<&TgMetaNode> {
+        self.get_by_idx(node.idx)
+    }
     
     fn get_mut_by_idx(&mut self, idx: usize) -> Option<&mut TgMetaNode>;
     fn get_mut(&mut self, node: &TgNode) -> Option<&mut TgMetaNode> {
