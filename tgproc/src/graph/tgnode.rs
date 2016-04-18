@@ -174,11 +174,11 @@ impl TgNode {
                     // because we are blue at least one pred is blue
                     // if the other one is blue, too, everything is fine and we are green
                     // if the other one is green nothing is fine and we go red
-                    let all_blue = self.preds.iter().all(|&TgEdge{ ref dest, .. }| {
+                    let mut blue_preds = self.preds.iter().filter(|&&TgEdge{ ref dest, .. }| {
                         dest.as_ref().map_or(true, |p| p.is_blue())
                     });
-                    
-                    if all_blue {
+
+                    if blue_preds.nth(1).is_some() { // the other one is blue, too
                         self.taint = Taint::Green
                     } else { // we know that at least one pred is blue because self.is_blue() above
                         self.taint = Taint::Red
