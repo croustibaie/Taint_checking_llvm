@@ -120,6 +120,7 @@ impl Graph {
                     
                     // filter out unnecessary nodes
                     if ((meta_node.loc.func == "__wrap_write") || // __wrap_write is part of the instrumentation
+                        (meta_node.loc.func == "__wrap_malloc") || // __wrap_malloc is part of the instrumentation
                         (graph.options.no_tmp_instr && RE_TMP_VAR.is_match(v)) ||
                         (graph.options.no_libs && meta_node.is_lib()) ||
                         (graph.options.unique_locs && !locations.insert(meta_node.loc.addr))) {
