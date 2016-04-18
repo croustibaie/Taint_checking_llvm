@@ -1,16 +1,4 @@
 >>>> The origin of the taint should be just here <<<<
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
---------------------------------------------------------------------------------
->>>> The origin of the taint should be just here <<<<
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
---------------------------------------------------------------------------------
->>>> The origin of the taint should be just here <<<<
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
---------------------------------------------------------------------------------
->>>> The origin of the taint should be just here <<<<
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
---------------------------------------------------------------------------------
->>>> The origin of the taint should be just here <<<<
 B                     write05.c:0004:                 main:  int main() {
 B                     write05.c:0006:                 main:  long ip = (long) &i;
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
+R                    write05.O1:0000:         __wrap_write:  [file not found]

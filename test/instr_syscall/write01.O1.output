@@ -1,4 +1,5 @@
 >>>> The origin of the taint should be just here <<<<
 B                     write01.c:0004:                 main:  int main() {
+R                     write01.c:0005:                 main:  int i = 0;
 R                     write01.c:0006:                 main:  long ip = 0x000000000000ff00 & (long) (int) &i;
-R                libc_wrapper.c:0039:         __wrap_write:  [file not found]
+R                    write01.O1:0000:         __wrap_write:  [file not found]

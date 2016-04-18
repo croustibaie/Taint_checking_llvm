@@ -1,81 +1,97 @@
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 G                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<
 B                     print02.c:0003:                 main:  int main() {
 B                     print02.c:0004:                 main:  int i = 0;
+R                            ??:0000:             vfprintf:  [file not found]
 R                            ??:0000:           _itoa_word:  [file not found]
 ================================================================================
 >>>> The origin of the taint should be just here <<<<

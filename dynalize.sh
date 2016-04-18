@@ -70,6 +70,7 @@ valgrind --tool=taintgrind --tainted-ins-only=yes "$EXEC" > /dev/null 2> "$DEST_
 
 #PROCESS_TOOL=$(dirname $0)/process-taintgrind/process-taintgrind-output.rb
 PROCESS_TOOL=$(dirname $0)/tgproc/target/release/tgproc
+#PROCESS_TOOL=$(dirname $0)/tgproc/target/debug/tgproc
 $PROCESS_TOOL $PTO_ARGS "$DEST_TG"
 
 if [ $CLEANUP = 1 ]; then
