@@ -332,16 +332,27 @@ impl Graph {
                     meta.loc.complete_info(debug_db);
                 }
 
-                let mut prev_loc = None;
+                let mut prev_meta : Option<&TgMetaNode> = None;
+                let mut prev_node : Option<&TgNode> = None;
                 
                 for node in trace {
                     let meta: &TgMetaNode = meta_db.get(node).unwrap();
-                    
-                    // don't print the same line twice
-                    if Some(&meta.loc) != prev_loc {
-                        node.print(meta, self.options.color);
-                        prev_loc = Some(&meta.loc);
+
+                    if let Some(ref pn) = prev_node {
+                        let pm = prev_meta.unwrap();
+                        // don't print the same line twice, however, we have to print the last
+                        // occurrence in order to get the taint right
+                        if meta.loc != pm.loc {
+                            pn.print(pm, self.options.color);
+                        }
                     }
+
+                    prev_node = Some(node);
+                    prev_meta = Some(meta)
+                }
+
+                if let Some(ref pn) = prev_node {
+                    pn.print(prev_meta.unwrap(), self.options.color);
                 }
             }
         }
