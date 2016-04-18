@@ -339,23 +339,23 @@ conditions. Tainted values are values derived from casts from pointers to
 integrals.
 
 Flags:
- -v, -verbose         Verbose mode
- -libs=yes|no         In the traces, show lines that are located in 3rd-party-
-                      libraries. Specifically, a line is considered to be in a
-                      library, if the source file cannot be found below the
-                      current working directory. Default is no.
- -tmp-instr=yes|no    In the traces, show lines that affect only temporary
-                      variables inserted by valgrind. Default is no.
- -unique-locs=yes|no  In the traces, don't show the same source location twice
-                      (e.g. in a loop). This makes the trace incomplete but
-                      avoids very big traces. Default is no.
- -src-only            Show only the sources, not the full trace.
- -taintgrind-trace    Show the taintgrind trace for the identified sinks.
- -mark-trace          For each trace print the whole taintgrind log but mark
-                      the trace using color
- -mark-taint          Just mark the taint color of each line
- -no-color            Do not use terminal colors
- -mark-sink [lineno.] Mark the line as sink; this disables automatic sink
+ -v, --verbose         Verbose mode
+ --libs                In the traces, show lines that are located in 3rd-party-
+                       libraries. Specifically, a line is considered to be in a
+                       library, if the source file cannot be found below the
+                       current working directory.
+ --tmp-instr           In the traces, show lines that affect only temporary
+                       variables inserted by valgrind.
+ --unique-locs         In the traces, don't show the same source location twice
+                       (e.g. in a loop). This makes the trace incomplete but
+                       avoids very big traces.
+ --src-only            Show only the sources, not the full trace.
+ --taintgrind-trace    Show the taintgrind trace for the identified sinks.
+ --mark-trace          For each trace print the whole taintgrind log but mark
+                       the trace using color
+ --mark-taint          Just mark the taint color of each line
+ --no-color            Do not use terminal colors
+ --mark-sink [lineno.] Mark the line as sink; this disables automatic sink
                       detection
 HELP
 
@@ -375,31 +375,31 @@ loop do
   when "-v", "-verbose", "--verbose"
     $verbose = true
     ARGV.shift
-  when /^-libs=(yes|no)$/
-    nolib = $1 == "no"
+  when "--libs"
+    nolib = false
     ARGV.shift
-  when /^-tmp-instr=(yes|no)$/
-    notmp = $1 == "no"
+  when "--tmp-instr"
+    notmp = false
     ARGV.shift
-  when /^-unique-locs=(yes|no)$/
-    unique_locs = $1 == "yes"
+  when "--unique-locs"
+    unique_locs = true
     ARGV.shift
-  when "-src-only"
+  when "--src-only"
     src_only = true
     ARGV.shift
-  when "-taintgrind-trace"
+  when "--taintgrind-trace"
     taintgrind_trace = true
     ARGV.shift
-  when "-mark-trace"
+  when "--mark-trace"
     mark_trace = true
     ARGV.shift
-  when "-mark-taint"
+  when "--mark-taint"
     mark_taint = true
     ARGV.shift
-  when "-no-color"
+  when "--no-color"
     $color = false
     ARGV.shift
-  when "-mark-sink"
+  when "--mark-sink"
     ARGV.shift
     TaintGrindOp.sink_lines.push ARGV.shift.to_i
   when /^-/
