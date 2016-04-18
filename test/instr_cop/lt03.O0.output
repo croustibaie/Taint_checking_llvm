@@ -2,6 +2,5 @@
 B                        lt03.c:0005:                 main:  int main() {
 B                        lt03.c:0008:                 main:  return f(a, (int) &b);
 B                        lt03.c:0001:                    f:  int f(int a, int b) {
-B                        lt03.c:0001:                    f:  int f(int a, int b) {
 R                        lt03.c:0002:                    f:  return a < b;
 R                            ??:0000:                _Exit:  [file not found]
