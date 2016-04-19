@@ -3,7 +3,7 @@
 if [ -z "$1" ]; then
     echo "Usage: dynalize.sh [args] <executable | c-source>"
     echo "Args:"
-    echo "  -no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
+    echo "  --no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
     echo "  All other arguments are directly passed down to process-taintgrind-output"
     exit 1
 fi
@@ -23,7 +23,7 @@ done
 PTO_ARGS=""
 
 for ARG in $ARGS; do
-    if [ "$ARG" = "-no-cleanup" ]; then
+    if [ "$ARG" = "--no-cleanup" ]; then
         CLEANUP=0
     else
         PTO_ARGS="$PTO_ARGS $ARG"
@@ -35,7 +35,7 @@ if [[ "$SRC" =~ \.c$ ]]; then
     
     OBJ_ARGS=""
     if [ $CLEANUP = 0 ]; then
-        OBJ_ARGS="-no-cleanup"
+        OBJ_ARGS="--no-cleanup"
     fi
     
     OBJ_FILE="$TMP_BASE".o

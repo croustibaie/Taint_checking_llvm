@@ -4,7 +4,7 @@ CLEANUP=1
 ARGS=""
 
 while [[ -n "$1" && "$1" != *.c && "$1" != *.cpp ]]; do
-    if [ "$1" = "-no-cleanup" ]; then
+    if [ "$1" = "--no-cleanup" ]; then
         CLEANUP=0
     else
         ARGS="$ARGS $1"
@@ -15,7 +15,7 @@ done
 if [ -z "$1" ]; then
     echo "Usage: objectize.sh [args] <c-file> [object-file]"
     echo "Args:"
-    echo "  -no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
+    echo "  --no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
     echo "  All other arguments are directly passed to the initial compilation of the c source"
     exit 1
 fi
