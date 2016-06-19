@@ -8,23 +8,24 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::fs::File;
 
-pub struct GraphPrinter<'a> {
-    graph: &'a Graph
+pub struct GraphPrinter<'a, T: 'a + TgMetaDb> {
+    pub graph: &'a Graph,
+    pub meta_db: &'a mut T
 }
 
-impl<'a> GraphPrinter<'a> {
-    pub fn new<'b>(graph: &'b Graph) -> GraphPrinter {
+impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
+    pub fn new<'b, U: 'b + TgMetaDb>(graph: &'b Graph, meta_db: &'b mut U) -> GraphPrinter<'b, U> {
         let graph = GraphPrinter {
-            graph: graph
+            graph: graph,
+            meta_db: meta_db
         };
 
         graph
     }
 
-    pub fn print_traces_of<T: TgMetaDb>(&self,
-                                        sink: &TgNode,
-                                        meta_db: &mut T,
-                                        debug_db: &mut DebugInfoDb) {
+    pub fn print_traces_of(&mut self,
+                           sink: &TgNode,
+                           debug_db: &mut DebugInfoDb) {
         for (tidx,trace) in self.graph.get_traces(sink).iter().enumerate() {
             // separate each source
             if tidx > 0 {
@@ -41,7 +42,7 @@ impl<'a> GraphPrinter<'a> {
             if self.graph.options.src_only {
                 // print only the source, not the whole trace
                 let src = trace[0];
-                let meta = meta_db.get_mut(src).unwrap();
+                let meta = self.meta_db.get_mut(src).unwrap();
                 meta.loc.complete_info(debug_db);
                 src.print(meta, self.graph.options.color);
             } else if self.graph.options.mark_trace {
@@ -84,13 +85,13 @@ impl<'a> GraphPrinter<'a> {
             } else if self.graph.options.taintgrind_trace {
                 // print the taintgrind lines of the trace instead of the source lines
                 for node in trace {
-                    let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+                    let meta: &mut TgMetaNode = self.meta_db.get_mut(node).unwrap();
                     println!("{}", node.taint.paint(&meta.line))
                 }
             } else {
                 // default behavior: print the source lines of the trace
                 for node in trace {
-                    let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
+                    let meta: &mut TgMetaNode = self.meta_db.get_mut(node).unwrap();
                     meta.loc.complete_info(debug_db);
                 }
 
@@ -98,7 +99,7 @@ impl<'a> GraphPrinter<'a> {
                 let mut prev_node : Option<&TgNode> = None;
                 
                 for node in trace {
-                    let meta: &TgMetaNode = meta_db.get(node).unwrap();
+                    let meta: &TgMetaNode = self.meta_db.get(node).unwrap();
 
                     if let Some(ref pn) = prev_node {
                         let pm = prev_meta.unwrap();
@@ -120,7 +121,7 @@ impl<'a> GraphPrinter<'a> {
         }
     }
 
-    pub fn print_traces<T: TgMetaDb>(&mut self, meta_db: &mut T) {
+    pub fn print_traces(&mut self) {
         let mut debug_db = DebugInfoDb::new();
         
         for (sidx,sink) in self.graph.sinks.iter().enumerate() {
@@ -134,7 +135,7 @@ impl<'a> GraphPrinter<'a> {
                 }
             }
 
-            self.print_traces_of(sink, meta_db, &mut debug_db);
+            self.print_traces_of(sink, &mut debug_db);
         }
     }
 }

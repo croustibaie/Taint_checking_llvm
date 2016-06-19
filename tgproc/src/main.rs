@@ -17,7 +17,13 @@ fn main() {
     match Graph::new(cli_opts, Some(&mut meta_db)) {
         Ok(graph) => {
             if ! graph.options.mark_taint {
-                GraphPrinter::new(&graph).print_traces(&mut meta_db);
+                let mut x = GraphPrinter {
+                    graph: &graph,
+                    meta_db: &mut meta_db
+                };
+                
+                //let x: GraphPrinter<SimpleMetaDB> = GraphPrinter::new(&graph, &mut meta_db);
+                x.print_traces();
             }
         },
         Err(x) => println!("{}", x)
