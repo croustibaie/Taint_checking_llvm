@@ -6,6 +6,7 @@ mod graph;
 
 use cli::parse_opts;
 use graph::Graph;
+use graph::GraphPrinter;
 use graph::meta::TgMetaDb;
 use graph::meta::SimpleMetaDB;
 
@@ -16,7 +17,7 @@ fn main() {
     match Graph::new(cli_opts, Some(&mut meta_db)) {
         Ok(graph) => {
             if ! graph.options.mark_taint {
-                graph.print_traces(&mut meta_db)
+                GraphPrinter::new(&graph).print_traces(&mut meta_db);
             }
         },
         Err(x) => println!("{}", x)
