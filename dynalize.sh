@@ -1,10 +1,18 @@
 #!/bin/sh
 
+#PROCESS_TOOL=$(dirname $0)/process-taintgrind/process-taintgrind-output.rb
+PROCESS_TOOL=$(dirname $0)/tgproc/target/release/tgproc
+#PROCESS_TOOL=$(dirname $0)/tgproc/target/debug/tgproc
+
 if [ -z "$1" ]; then
     echo "Usage: dynalize.sh [args] <executable | c-source>"
     echo "Args:"
     echo "  --no-cleanup    Don't clean up afterwards leaving the tmp files in /tmp"
-    echo "  All other arguments are directly passed down to process-taintgrind-output"
+    echo "  All other arguments are directly passed down to the taintgrind processor tgproc."
+    echo
+    echo "tgproc help"
+    echo "==========="
+    $PROCESS_TOOL --help
     exit 1
 fi
 
@@ -68,9 +76,6 @@ CLEANUP_FILES="$CLEANUP_FILES $DEST_TG"
 
 valgrind --tool=taintgrind --tainted-ins-only=yes "$EXEC" > /dev/null 2> "$DEST_TG"
 
-#PROCESS_TOOL=$(dirname $0)/process-taintgrind/process-taintgrind-output.rb
-PROCESS_TOOL=$(dirname $0)/tgproc/target/release/tgproc
-#PROCESS_TOOL=$(dirname $0)/tgproc/target/debug/tgproc
 $PROCESS_TOOL $PTO_ARGS "$DEST_TG"
 
 if [ $CLEANUP = 1 ]; then
