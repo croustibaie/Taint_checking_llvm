@@ -7,11 +7,15 @@ use ansi_term::Colour;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::fs::File;
+use std::collections::HashSet;
 
 pub struct GraphPrinter<'a, T: 'a + TgMetaDb> {
     graph: &'a Graph,
     meta_db: &'a mut T,
-    debug_db: DebugInfoDb
+    debug_db: DebugInfoDb,
+    printed_srcs: HashSet<u64>,
+    printed_sinks: HashSet<u64>,
+    skipped_traces: u32
 }
 
 impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
@@ -19,24 +23,46 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
         GraphPrinter {
             graph: graph,
             meta_db: meta_db,
-            debug_db: DebugInfoDb::new()
+            debug_db: DebugInfoDb::new(),
+            printed_srcs: HashSet::new(),
+            printed_sinks: HashSet::new(),
+            skipped_traces: 0
         }
     }
 
+    /**
+     * @return true if this one was completely skipped
+     */
     pub fn print_traces_of(&mut self,
-                           sink: &TgNode) {
+                           sink: &TgNode) -> bool {
+        let mut completely_skipped = true;
+        if self.graph.options.single_sink {
+            let sink_addr = self.meta_db.get(sink).unwrap().loc.addr;
+            if !self.printed_sinks.insert(sink_addr) {
+                // if printed_sinks already contains this address we skip this one
+                self.skipped_traces += 1;
+                return completely_skipped;
+            }
+        }
+
         for (tidx,trace) in self.graph.get_traces(sink).iter().enumerate() {
+            if self.graph.options.single_src {
+                let src = trace[0];
+                let src_addr = self.meta_db.get(src).unwrap().loc.addr;
+                if !self.printed_sinks.insert(src_addr) {
+                    // if printed_srcs already contains this address we skip this one
+                    self.skipped_traces += 1;
+                    continue;
+                }
+            }
+            
             // separate each source
             if tidx > 0 {
-                let sep = "--------------------------------------------------------------------------------";
-                if self.graph.options.color {
-                    println!("{}", Colour::Yellow.paint(sep));
-                } else {
-                    println!("{}", sep);
-                }
+                self.print_sep("--------------------------------------------------------------------------------", Colour::Yellow);
             }
 
             println!(">>>> The origin of the taint should be just here <<<<");
+            completely_skipped = false;
 
             if self.graph.options.src_only {
                 // print only the source, not the whole trace
@@ -118,21 +144,43 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
                 }
             }
         }
+
+        completely_skipped
     }
 
     pub fn print_traces(&mut self) {
+        self.printed_srcs.clear();
+        self.printed_sinks.clear();
+        self.skipped_traces = 0;
+
+        let mut skipped_last = false;
+        
         for (sidx,sink) in self.graph.sinks.iter().enumerate() {
             // separate each sink
-            if sidx > 0 {
-                let sep = "================================================================================";
-                if self.graph.options.color {
-                    println!("{}", Colour::Green.paint(sep));
-                } else {
-                    println!("{}", sep);
-                }
+            if sidx > 0 && !skipped_last {
+                self.print_sink_sep();
             }
 
-            self.print_traces_of(sink);
+            skipped_last = self.print_traces_of(sink);
+        }
+
+        if self.graph.options.single_src || self.graph.options.single_sink {
+            if !skipped_last {
+                self.print_sink_sep();
+            }
+            println!("{} traces skipped.", self.skipped_traces);
+        }
+    }
+
+    fn print_sink_sep(&self) {
+        self.print_sep("================================================================================", Colour::Green);
+    }
+
+    fn print_sep(&self, sep: &str, color: Colour) {
+        if self.graph.options.color {
+            println!("{}", color.paint(sep));
+        } else {
+            println!("{}", sep);
         }
     }
 }
