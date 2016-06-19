@@ -293,11 +293,13 @@ impl Graph {
             println!(">>>> The origin of the taint should be just here <<<<");
 
             if self.options.src_only {
+                // print only the source, not the whole trace
                 let src = trace[0];
                 let meta = meta_db.get_mut(src).unwrap();
                 meta.loc.complete_info(debug_db);
                 src.print(meta, self.options.color);
             } else if self.options.mark_trace {
+                // print the whole taintgrind trace
                 let f = File::open(&self.options.logfile).unwrap();
                 let file = BufReader::new(&f);
 
@@ -334,11 +336,13 @@ impl Graph {
                     }
                 }
             } else if self.options.taintgrind_trace {
+                // print the taintgrind lines of the trace instead of the source lines
                 for node in trace {
                     let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
                     println!("{}", node.taint.paint(&meta.line))
                 }
             } else {
+                // default behavior: print the source lines of the trace
                 for node in trace {
                     let meta: &mut TgMetaNode = meta_db.get_mut(node).unwrap();
                     meta.loc.complete_info(debug_db);

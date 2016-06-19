@@ -9,6 +9,8 @@ pub struct Options {
     pub no_libs: bool,
     pub no_tmp_instr: bool,
     pub unique_locs: bool,
+    pub single_sink: bool,
+    pub single_src: bool,
     pub src_only: bool,
     pub color: bool,
     pub verbosity: u8,
@@ -25,6 +27,8 @@ pub fn parse_opts() -> Options {
         no_libs: true,
         no_tmp_instr: true,
         unique_locs: false,
+        single_sink: false,
+        single_src: false,
         src_only: false,
         color: true,
         verbosity: 10,
@@ -61,6 +65,14 @@ pub fn parse_opts() -> Options {
                         "In the traces, don't show the same source location twice \
                          (e.g. in a loop). This makes the trace incomplete but \
                          avoids very big traces.");
+
+        ap.refer(&mut cli_opts.single_src)
+            .add_option(&["--single-src"], StoreTrue,
+                        "Show only one trace per source.");
+
+        ap.refer(&mut cli_opts.single_sink)
+            .add_option(&["--single-sink"], StoreTrue,
+                        "Show only one trace per sink.");
         
         ap.refer(&mut cli_opts.src_only)
             .add_option(&["--src-only"], StoreTrue,
