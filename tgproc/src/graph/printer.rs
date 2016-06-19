@@ -9,21 +9,22 @@ use std::io::BufRead;
 use std::fs::File;
 
 pub struct GraphPrinter<'a, T: 'a + TgMetaDb> {
-    pub graph: &'a Graph,
-    pub meta_db: &'a mut T
+    graph: &'a Graph,
+    meta_db: &'a mut T,
+    debug_db: DebugInfoDb
 }
 
 impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
     pub fn new<'b, U: TgMetaDb>(graph: &'b Graph, meta_db: &'b mut U) -> GraphPrinter<'b, U> {
         GraphPrinter {
             graph: graph,
-            meta_db: meta_db
+            meta_db: meta_db,
+            debug_db: DebugInfoDb::new()
         }
     }
 
     pub fn print_traces_of(&mut self,
-                           sink: &TgNode,
-                           debug_db: &mut DebugInfoDb) {
+                           sink: &TgNode) {
         for (tidx,trace) in self.graph.get_traces(sink).iter().enumerate() {
             // separate each source
             if tidx > 0 {
@@ -41,7 +42,7 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
                 // print only the source, not the whole trace
                 let src = trace[0];
                 let meta = self.meta_db.get_mut(src).unwrap();
-                meta.loc.complete_info(debug_db);
+                meta.loc.complete_info(&mut self.debug_db);
                 src.print(meta, self.graph.options.color);
             } else if self.graph.options.mark_trace {
                 // print the whole taintgrind trace
@@ -90,7 +91,7 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
                 // default behavior: print the source lines of the trace
                 for node in trace {
                     let meta: &mut TgMetaNode = self.meta_db.get_mut(node).unwrap();
-                    meta.loc.complete_info(debug_db);
+                    meta.loc.complete_info(&mut self.debug_db);
                 }
 
                 let mut prev_meta : Option<&TgMetaNode> = None;
@@ -120,8 +121,6 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
     }
 
     pub fn print_traces(&mut self) {
-        let mut debug_db = DebugInfoDb::new();
-        
         for (sidx,sink) in self.graph.sinks.iter().enumerate() {
             // separate each sink
             if sidx > 0 {
@@ -133,7 +132,7 @@ impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
                 }
             }
 
-            self.print_traces_of(sink, &mut debug_db);
+            self.print_traces_of(sink);
         }
     }
 }
