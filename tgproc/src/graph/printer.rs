@@ -14,13 +14,11 @@ pub struct GraphPrinter<'a, T: 'a + TgMetaDb> {
 }
 
 impl<'a, T: TgMetaDb> GraphPrinter<'a, T> {
-    pub fn new<'b, U: 'b + TgMetaDb>(graph: &'b Graph, meta_db: &'b mut U) -> GraphPrinter<'b, U> {
-        let graph = GraphPrinter {
+    pub fn new<'b, U: TgMetaDb>(graph: &'b Graph, meta_db: &'b mut U) -> GraphPrinter<'b, U> {
+        GraphPrinter {
             graph: graph,
             meta_db: meta_db
-        };
-
-        graph
+        }
     }
 
     pub fn print_traces_of(&mut self,
